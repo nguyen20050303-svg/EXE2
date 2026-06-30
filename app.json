@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Hidder",
+    "slug": "hidder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
