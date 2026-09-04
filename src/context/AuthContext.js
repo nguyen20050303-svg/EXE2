@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { ensureSeedData } from '../services/database';
 import { secureDeleteItem, secureGetItem, secureSetItem } from '../services/secureStorage';
+import { supabase } from '../services/supabase';
 
 export const AuthContext = createContext(null);
 
@@ -24,6 +25,7 @@ export const AuthProvider = ({ children }) => {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [disguiseType, setDisguiseType] = useState('notes');
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -63,8 +65,24 @@ export const AuthProvider = ({ children }) => {
 
     bootstrap();
 
+    // Lắng nghe trạng thái đăng nhập của Supabase
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (mounted) {
+        setCurrentUser(session?.user ?? null);
+      }
+    });
+
+    const {
+      data: { subscription: authSubscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) {
+        setCurrentUser(session?.user ?? null);
+      }
+    });
+
     return () => {
       mounted = false;
+      authSubscription?.unsubscribe();
     };
   }, []);
 
@@ -175,6 +193,71 @@ export const AuthProvider = ({ children }) => {
     setActiveVaultMode(null);
   };
 
+  const signInWithEmail = async (email, password) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      setCurrentUser(data.user);
+      return { success: true, user: data.user };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const signUpWithEmail = async (email, password) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
+
+      return {
+        success: true,
+        user: data.user,
+        session: data.session,
+        needsConfirmation: !data.session,
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const signOutUser = async () => {
+    try {
+      await supabase.auth.signOut();
+      setCurrentUser(null);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const changeDisguiseType = async (type) => {
+    try {
+      await secureSetItem(STORAGE_KEYS.disguiseType, type);
+      setDisguiseType(type);
+      return true;
+    } catch (err) {
+      console.error('Lỗi đổi vỏ ngụy trang:', err);
+      return false;
+    }
+  };
+
   const value = useMemo(
     () => ({
       isInitializing,
@@ -184,15 +267,21 @@ export const AuthProvider = ({ children }) => {
       biometricAvailable,
       biometricEnabled,
       disguiseType,
+      currentUser,
       completeSetup,
       attemptUnlock,
       authenticateBiometric,
       lockVault,
+      changeDisguiseType,
+      signInWithEmail,
+      signUpWithEmail,
+      signOutUser,
     }),
     [
       activeVaultMode,
       biometricAvailable,
       biometricEnabled,
+      currentUser,
       disguiseType,
       isInitializing,
       isSetupComplete,

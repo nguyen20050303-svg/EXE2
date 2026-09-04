@@ -5,8 +5,13 @@ import { isValidSecretCode, maskSecretCode } from '../services/crypto';
 const DISGUISE_OPTIONS = [
   {
     key: 'notes',
-    label: 'Notes',
-    description: 'Lớp vỏ nhẹ nhất cho MVP, hỗ trợ trigger qua ô tìm kiếm.',
+    label: 'Ghi chú (Notes)',
+    description: 'Ngụy trang thành ứng dụng ghi chú, mở kho qua ô tìm kiếm.',
+  },
+  {
+    key: 'calculator',
+    label: 'Máy tính (Calculator)',
+    description: 'Ngụy trang thành máy tính số học thật, gõ mã và bấm dấu = để mở kho.',
   },
 ];
 
