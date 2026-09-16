@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system';
-import { generateId } from '../utils/helpers';
+import { generateId } from '../utils/helpers.js';
 
 export const VAULT_DIRS = {
   photos: `${FileSystem.documentDirectory}hidder/photos/`,

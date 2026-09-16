@@ -69,7 +69,7 @@ export default function SetupWizard({ biometricAvailable, onComplete }) {
         <Text style={styles.eyebrow}>Hidder setup</Text>
         <Text style={styles.title}>{stepTitle}</Text>
         <Text style={styles.description}>
-          Local-first, không cần tài khoản. Mọi cấu hình trong bản này được lưu trên thiết bị.
+          Bảo mật cấp thiết bị. Mã PIN và cấu hình ngụy trang được lưu mã hóa an toàn trên thiết bị của bạn.
         </Text>
       </View>
 

@@ -1,6 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { generateId } from '../utils/helpers';
-import { supabase } from './supabase';
+import { generateId } from '../utils/helpers.js';
+import { supabase } from './supabase.js';
+import {
+  enqueueNote,
+  enqueuePassword,
+  enqueueFile,
+  syncAll as syncAllManager,
+  getPendingQueueCount,
+  SYNC_ACTIONS,
+} from './syncManager.js';
 
 const STORAGE_KEYS = {
   publicNotes: 'hidder.public-notes',
@@ -141,160 +149,18 @@ export const pushPhotoToSupabase = async (photo) => {
   }
 };
 
-export const syncAllWithSupabase = async () => {
+export const syncAllWithSupabase = async (options = {}) => {
+  return syncAllManager(options);
+};
+
+export const getSyncQueueCount = async () => {
   try {
     const { data: authData } = await supabase.auth.getUser();
-    const user = authData?.user;
-
-    if (!user) {
-      return {
-        success: false,
-        error: 'Bạn chưa đăng nhập. Vui lòng vào mục "Tài khoản Cloud" để đăng nhập trước khi đồng bộ.',
-      };
-    }
-
-    // 1. Đọc dữ liệu local hiện tại
-    const [publicLocal, privateLocal, decoyLocal, photoLocal] = await Promise.all([
-      readJson(STORAGE_KEYS.publicNotes, []),
-      readJson(STORAGE_KEYS.privateNotes, []),
-      readJson(STORAGE_KEYS.decoyNotes, []),
-      readJson(STORAGE_KEYS.photoItems, []),
-    ]);
-
-    // 2. Đẩy các ghi chú local lên Supabase gắn với user_id
-    const allLocalNotesToPush = [
-      ...publicLocal.map((n) => ({
-        id: n.id,
-        title: n.title,
-        content: n.content,
-        type: 'public',
-        user_id: user.id,
-        updated_at: n.updatedAt,
-      })),
-      ...privateLocal.map((n) => ({
-        id: n.id,
-        title: n.title,
-        content: n.content,
-        type: 'private',
-        user_id: user.id,
-        updated_at: n.updatedAt,
-      })),
-      ...decoyLocal.map((n) => ({
-        id: n.id,
-        title: n.title,
-        content: n.content,
-        type: 'decoy',
-        user_id: user.id,
-        updated_at: n.updatedAt,
-      })),
-    ];
-
-    if (allLocalNotesToPush.length > 0) {
-      const { error: pushNotesErr } = await supabase
-        .from('notes')
-        .upsert(allLocalNotesToPush, { onConflict: 'id' });
-      if (pushNotesErr) throw pushNotesErr;
-    }
-
-    if (photoLocal.length > 0) {
-      const allPhotosToPush = photoLocal.map((p) => ({
-        id: p.id,
-        name: p.name,
-        url: p.uri,
-        size: p.size || 0,
-        user_id: user.id,
-        created_at: p.createdAt || new Date().toISOString(),
-      }));
-      const { error: pushPhotosErr } = await supabase
-        .from('photos')
-        .upsert(allPhotosToPush, { onConflict: 'id' });
-      if (pushPhotosErr) throw pushPhotosErr;
-    }
-
-    // 3. Tải dữ liệu mới nhất từ Supabase về (theo user_id)
-    const { data: remoteNotes, error: notesError } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('user_id', user.id);
-    if (notesError) throw notesError;
-
-    const { data: remotePhotos, error: photosError } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('user_id', user.id);
-    if (photosError) throw photosError;
-
-    // 4. Hợp nhất (Merge) dữ liệu Supabase vào local
-    if (remoteNotes && remoteNotes.length > 0) {
-      const mergeNotes = (localList, targetType) => {
-        const matchingRemote = remoteNotes.filter((n) => n.type === targetType);
-        const map = new Map();
-        localList.forEach((item) => map.set(item.id, item));
-
-        matchingRemote.forEach((rem) => {
-          const item = {
-            id: rem.id,
-            title: rem.title,
-            content: rem.content,
-            updatedAt: rem.updated_at || rem.created_at || new Date().toISOString(),
-          };
-
-          if (!map.has(rem.id)) {
-            map.set(rem.id, item);
-          } else {
-            const existing = map.get(rem.id);
-            if (new Date(item.updatedAt) > new Date(existing.updatedAt)) {
-              map.set(rem.id, item);
-            }
-          }
-        });
-
-        return Array.from(map.values()).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-      };
-
-      const nextPublic = mergeNotes(publicLocal, 'public');
-      const nextPrivate = mergeNotes(privateLocal, 'private');
-      const nextDecoy = mergeNotes(decoyLocal, 'decoy');
-
-      await Promise.all([
-        writeJson(STORAGE_KEYS.publicNotes, nextPublic),
-        writeJson(STORAGE_KEYS.privateNotes, nextPrivate),
-        writeJson(STORAGE_KEYS.decoyNotes, nextDecoy),
-      ]);
-    }
-
-    if (remotePhotos && remotePhotos.length > 0) {
-      const map = new Map();
-      photoLocal.forEach((p) => map.set(p.id, p));
-
-      remotePhotos.forEach((rem) => {
-        if (!map.has(rem.id)) {
-          map.set(rem.id, {
-            id: rem.id,
-            name: rem.name,
-            uri: rem.url,
-            size: Number(rem.size) || 0,
-            createdAt: rem.created_at || new Date().toISOString(),
-          });
-        }
-      });
-
-      const nextPhotos = Array.from(map.values()).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      await writeJson(STORAGE_KEYS.photoItems, nextPhotos);
-    }
-
-    const timestamp = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    await AsyncStorage.setItem(STORAGE_KEYS.lastSyncTime, timestamp);
-
-    return {
-      success: true,
-      timestamp,
-      totalNotes: remoteNotes ? remoteNotes.length : 0,
-      totalPhotos: remotePhotos ? remotePhotos.length : 0,
-    };
-  } catch (error) {
-    console.warn('Lỗi khi đồng bộ Supabase:', error);
-    return { success: false, error: error.message };
+    const userId = authData?.user?.id;
+    if (!userId) return 0;
+    return getPendingQueueCount(userId);
+  } catch (err) {
+    return 0;
   }
 };
 
@@ -350,10 +216,21 @@ export const createPublicNote = async ({ title, content }) => {
   const next = [note, ...existing];
   await writeJson(STORAGE_KEYS.publicNotes, next);
 
-  // Background sync sang Supabase mà không chặn giao diện
-  void pushNoteToSupabase(note, 'public');
+  // Enqueue for offline sync
+  void enqueueNote(note, 'public', SYNC_ACTIONS.CREATE);
 
   return note;
+};
+
+export const deletePublicNote = async (id) => {
+  const existing = await getPublicNotes();
+  const deleted = existing.find((n) => n.id === id);
+  const next = existing.filter((n) => n.id !== id);
+  await writeJson(STORAGE_KEYS.publicNotes, next);
+  if (deleted) {
+    void enqueueNote(deleted, 'public', SYNC_ACTIONS.DELETE);
+  }
+  return next;
 };
 
 export const searchPublicNotes = async (query) => {
@@ -391,10 +268,21 @@ export const createVaultNote = async (mode = 'real', { title, content }) => {
   const next = [note, ...existing];
   await writeJson(keyByMode(mode), next);
 
-  // Background sync sang Supabase mà không chặn giao diện
-  void pushNoteToSupabase(note, mode === 'decoy' ? 'decoy' : 'private');
+  // Enqueue for offline sync
+  void enqueueNote(note, mode === 'decoy' ? 'decoy' : 'private', SYNC_ACTIONS.CREATE);
 
   return note;
+};
+
+export const deleteVaultNote = async (mode = 'real', id) => {
+  const existing = await getVaultNotes(mode);
+  const deleted = existing.find((n) => n.id === id);
+  const next = existing.filter((n) => n.id !== id);
+  await writeJson(keyByMode(mode), next);
+  if (deleted) {
+    void enqueueNote(deleted, mode === 'decoy' ? 'decoy' : 'private', SYNC_ACTIONS.DELETE);
+  }
+  return next;
 };
 
 export const getPhotoItems = async () => {
@@ -407,10 +295,21 @@ export const addPhotoItem = async (photo) => {
   const next = [{ ...photo, id: photo.id || generateId() }, ...existing];
   await writeJson(STORAGE_KEYS.photoItems, next);
 
-  // Background sync metadata ảnh lên Supabase
-  void pushPhotoToSupabase(next[0]);
+  // Enqueue for encrypted offline sync to GCS
+  void enqueueFile(next[0], 'PHOTO', SYNC_ACTIONS.CREATE);
 
   return next[0];
+};
+
+export const deletePhotoItem = async (id) => {
+  const existing = await getPhotoItems();
+  const deleted = existing.find((p) => p.id === id);
+  const next = existing.filter((p) => p.id !== id);
+  await writeJson(STORAGE_KEYS.photoItems, next);
+  if (deleted) {
+    void enqueueFile(deleted, 'PHOTO', SYNC_ACTIONS.DELETE);
+  }
+  return next;
 };
 
 export const getVaultSummary = async (mode = 'real') => {
@@ -446,13 +345,18 @@ export const addVideoItem = async (video) => {
   const existing = await getVideoItems();
   const next = [{ ...video, id: video.id || generateId() }, ...existing];
   await writeJson(STORAGE_KEYS.videoItems, next);
+  void enqueueFile(next[0], 'VIDEO', SYNC_ACTIONS.CREATE);
   return next[0];
 };
 
 export const deleteVideoItem = async (id) => {
   const existing = await getVideoItems();
+  const deleted = existing.find((item) => item.id === id);
   const next = existing.filter((item) => item.id !== id);
   await writeJson(STORAGE_KEYS.videoItems, next);
+  if (deleted) {
+    void enqueueFile(deleted, 'VIDEO', SYNC_ACTIONS.DELETE);
+  }
   return next;
 };
 
@@ -467,6 +371,7 @@ export const getPasswordItems = async () => {
 export const savePasswordItem = async (item) => {
   const existing = await getPasswordItems();
   const index = existing.findIndex((i) => i.id === item.id);
+  const isNew = index < 0;
   const updatedItem = {
     ...item,
     id: item.id || generateId(),
@@ -474,20 +379,25 @@ export const savePasswordItem = async (item) => {
   };
 
   let next;
-  if (index >= 0) {
+  if (!isNew) {
     next = [...existing];
     next[index] = updatedItem;
   } else {
     next = [updatedItem, ...existing];
   }
   await writeJson(STORAGE_KEYS.passwordItems, next);
+  void enqueuePassword(updatedItem, isNew ? SYNC_ACTIONS.CREATE : SYNC_ACTIONS.UPDATE);
   return updatedItem;
 };
 
 export const deletePasswordItem = async (id) => {
   const existing = await getPasswordItems();
+  const deleted = existing.find((item) => item.id === id);
   const next = existing.filter((item) => item.id !== id);
   await writeJson(STORAGE_KEYS.passwordItems, next);
+  if (deleted) {
+    void enqueuePassword(deleted, SYNC_ACTIONS.DELETE);
+  }
   return next;
 };
 
@@ -503,13 +413,18 @@ export const addDocumentItem = async (doc) => {
   const existing = await getDocumentItems();
   const next = [{ ...doc, id: doc.id || generateId() }, ...existing];
   await writeJson(STORAGE_KEYS.documentItems, next);
+  void enqueueFile(next[0], 'DOCUMENT', SYNC_ACTIONS.CREATE);
   return next[0];
 };
 
 export const deleteDocumentItem = async (id) => {
   const existing = await getDocumentItems();
+  const deleted = existing.find((item) => item.id === id);
   const next = existing.filter((item) => item.id !== id);
   await writeJson(STORAGE_KEYS.documentItems, next);
+  if (deleted) {
+    void enqueueFile(deleted, 'DOCUMENT', SYNC_ACTIONS.DELETE);
+  }
   return next;
 };
 
@@ -525,13 +440,18 @@ export const addVoiceItem = async (voice) => {
   const existing = await getVoiceItems();
   const next = [{ ...voice, id: voice.id || generateId() }, ...existing];
   await writeJson(STORAGE_KEYS.voiceItems, next);
+  void enqueueFile(next[0], 'VOICE', SYNC_ACTIONS.CREATE);
   return next[0];
 };
 
 export const deleteVoiceItem = async (id) => {
   const existing = await getVoiceItems();
+  const deleted = existing.find((item) => item.id === id);
   const next = existing.filter((item) => item.id !== id);
   await writeJson(STORAGE_KEYS.voiceItems, next);
+  if (deleted) {
+    void enqueueFile(deleted, 'VOICE', SYNC_ACTIONS.DELETE);
+  }
   return next;
 };
 

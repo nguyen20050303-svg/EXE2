@@ -3,6 +3,9 @@ import { Alert, StatusBar, View, ActivityIndicator, StyleSheet } from 'react-nat
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext, AuthProvider } from './src/context/AuthContext';
 import SetupWizard from './src/components/SetupWizard';
+import LoginScreen from './src/screens/auth/LoginScreen';
+import RegisterScreen from './src/screens/auth/RegisterScreen';
+import SubscriptionScreen from './src/screens/subscription/SubscriptionScreen';
 import NoteListScreen from './src/screens/public/NoteListScreen';
 import NoteDetailScreen from './src/screens/public/NoteDetailScreen';
 import CalculatorScreen from './src/screens/public/CalculatorScreen';
@@ -68,14 +71,24 @@ function MainAppContent() {
     isUnlocked,
     lockVault,
     biometricAvailable,
+    subscription,
+    subscriptionAccess,
+    subscriptionLoading,
   } = useContext(AuthContext);
 
+  const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register'
   const [currentScreen, setCurrentScreen] = useState('public-list');
   const [selectedNote, setSelectedNote] = useState(null);
   const [publicNotes, setPublicNotes] = useState([]);
   const [visiblePublicNotes, setVisiblePublicNotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingPublicNotes, setLoadingPublicNotes] = useState(true);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setAuthScreen('login');
+    }
+  }, [currentUser]);
 
   // Vault data states
   const [vaultSummary, setVaultSummary] = useState({
@@ -129,6 +142,10 @@ function MainAppContent() {
   };
 
   const loadVaultData = async (mode) => {
+    // If Real vault mode and subscription is expired, do not load sensitive vault items
+    if (mode === 'real' && subscriptionAccess && !subscriptionAccess.valid) {
+      return;
+    }
     setLoadingVault(true);
     const isReal = mode === 'real';
 
@@ -348,11 +365,23 @@ function MainAppContent() {
     await loadVaultData(activeVaultMode);
   };
 
-  if (isInitializing) {
+  if (isInitializing || (currentUser && (subscriptionLoading || !subscriptionAccess))) {
     return <LoadingScreen />;
   }
 
+  // --- Step 1: Check Supabase Authentication ---
+  if (!currentUser) {
+    if (authScreen === 'register') {
+      return <RegisterScreen onNavigateToLogin={() => setAuthScreen('login')} />;
+    }
+    return <LoginScreen onNavigateToRegister={() => setAuthScreen('register')} />;
+  }
+
+  // --- Step 2: Check Setup Wizard (Preserves Stealth Disguise if Setup Completed) ---
   if (!isSetupComplete) {
+    if (subscriptionAccess && !subscriptionAccess.valid) {
+      return <SubscriptionScreen onBack={null} />;
+    }
     return <SetupWizard biometricAvailable={biometricAvailable} onComplete={completeSetup} />;
   }
 
@@ -392,6 +421,15 @@ function MainAppContent() {
         />
       </>
     );
+  }
+
+  // --- Subscription Gate: Block Private Vault if Subscription Expired ---
+  if (activeVaultMode === 'real' && subscriptionAccess && !subscriptionAccess.valid) {
+    return <SubscriptionScreen onBack={handleQuickEscape} />;
+  }
+
+  if (currentScreen === 'subscription') {
+    return <SubscriptionScreen onBack={() => setCurrentScreen('account')} />;
   }
 
   // --- Vault Screens ---
@@ -498,6 +536,7 @@ function MainAppContent() {
         <AccountScreen
           onBack={() => setCurrentScreen('vault-home')}
           onSyncNow={handleSyncCloud}
+          onOpenSubscription={() => setCurrentScreen('subscription')}
           isSyncing={isSyncing}
           lastSync={lastSync}
         />

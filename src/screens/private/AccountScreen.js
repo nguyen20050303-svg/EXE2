@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,11 +12,34 @@ import {
   View,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
+import { getUserStorageUsage } from '../../services/cloudStorage';
+import { getPendingQueueCount, subscribeToSyncChanges } from '../../services/syncManager';
+import { formatBytes } from '../../utils/helpers';
 
-export default function AccountScreen({ onBack, onSyncNow, isSyncing, lastSync }) {
-  const { currentUser, signInWithEmail, signUpWithEmail, signOutUser } = useContext(AuthContext);
+export default function AccountScreen({ onBack, onSyncNow, onOpenSubscription, isSyncing, lastSync }) {
+  const {
+    currentUser,
+    subscriptionAccess,
+    signInWithEmail,
+    signUpWithEmail,
+    signOutUser,
+  } = useContext(AuthContext);
 
+  const [storageUsage, setStorageUsage] = useState({ storage_used: 0, storage_limit: 5368709120 });
+  const [pendingCount, setPendingCount] = useState(0);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      void getUserStorageUsage().then(setStorageUsage);
+      void getPendingQueueCount(currentUser.id).then(setPendingCount);
+      const unsubscribe = subscribeToSyncChanges(() => {
+        void getPendingQueueCount(currentUser.id).then(setPendingCount);
+        void getUserStorageUsage().then(setStorageUsage);
+      });
+      return unsubscribe;
+    }
+  }, [currentUser, isSyncing]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -137,9 +160,58 @@ export default function AccountScreen({ onBack, onSyncNow, isSyncing, lastSync }
             </View>
 
             <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Gói dịch vụ:</Text>
+              <Text style={styles.metaValue}>
+                {subscriptionAccess?.plan || 'Free Trial 30 Ngày'}
+              </Text>
+            </View>
+
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Trạng thái gói:</Text>
+              <Text style={[styles.metaValue, { color: subscriptionAccess?.valid ? '#4ADE80' : '#F87171' }]}>
+                {subscriptionAccess?.valid ? '● Đang hoạt động' : '● Hết hạn'}
+              </Text>
+            </View>
+
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Thời hạn:</Text>
+              <Text style={styles.metaValue}>
+                {subscriptionAccess?.remainingDays
+                  ? `Còn ${subscriptionAccess.remainingDays} ngày`
+                  : subscriptionAccess?.expirationDate || 'N/A'}
+              </Text>
+            </View>
+
+            {onOpenSubscription ? (
+              <TouchableOpacity
+                style={styles.manageSubButton}
+                onPress={onOpenSubscription}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.manageSubButtonText}>
+                  {subscriptionAccess?.valid ? '👑 Quản lý gói thành viên' : '⚠️ Gia hạn gói thành viên'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Dung lượng Cloud:</Text>
+              <Text style={styles.metaValue}>
+                {formatBytes(storageUsage.storage_used)} / {formatBytes(storageUsage.storage_limit)}
+              </Text>
+            </View>
+
+            <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>Lần đồng bộ cuối:</Text>
               <Text style={styles.metaValue}>
                 {lastSync ? lastSync : 'Chưa đồng bộ'}
+              </Text>
+            </View>
+
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Hàng đợi đồng bộ:</Text>
+              <Text style={[styles.metaValue, { color: pendingCount > 0 ? '#FBBF24' : '#4ADE80' }]}>
+                {pendingCount > 0 ? `⏳ ${pendingCount} mục chờ tải lên` : '✅ Đã đồng bộ hoàn tất'}
               </Text>
             </View>
 
@@ -379,6 +451,21 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontSize: 15,
     fontWeight: '700',
+  },
+  manageSubButton: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  manageSubButtonText: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '600',
   },
   signOutButton: {
     marginTop: 12,

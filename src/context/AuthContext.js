@@ -4,6 +4,8 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { ensureSeedData } from '../services/database';
 import { secureDeleteItem, secureGetItem, secureSetItem } from '../services/secureStorage';
 import { supabase } from '../services/supabase';
+import { getOrInitSubscription } from '../services/subscriptionService';
+import { getOrCreateUserMasterKey, clearActiveMasterKey } from '../services/crypto';
 
 export const AuthContext = createContext(null);
 
@@ -17,6 +19,38 @@ const STORAGE_KEYS = {
 
 const normalizeCode = (value) => value?.trim().toLowerCase() ?? '';
 
+// Helpers for Account-Isolated SecureStore keys
+const getUserSecureItem = async (keyName, userId) => {
+  if (!userId) return null;
+  const userKey = `${STORAGE_KEYS[keyName]}.${userId}`;
+  let val = await secureGetItem(userKey);
+
+  // Migration fallback: If user key doesn't exist yet, check legacy global key
+  if (val === null) {
+    const legacyKey = STORAGE_KEYS[keyName];
+    const legacyVal = await secureGetItem(legacyKey);
+    if (legacyVal !== null) {
+      val = legacyVal;
+      await secureSetItem(userKey, legacyVal);
+      await secureDeleteItem(legacyKey);
+    }
+  }
+
+  return val;
+};
+
+const setUserSecureItem = async (keyName, userId, value) => {
+  if (!userId) return;
+  const userKey = `${STORAGE_KEYS[keyName]}.${userId}`;
+  await secureSetItem(userKey, value);
+};
+
+const deleteUserSecureItem = async (keyName, userId) => {
+  if (!userId) return;
+  const userKey = `${STORAGE_KEYS[keyName]}.${userId}`;
+  await secureDeleteItem(userKey);
+};
+
 export const AuthProvider = ({ children }) => {
   const [isInitializing, setIsInitializing] = useState(true);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
@@ -26,6 +60,63 @@ export const AuthProvider = ({ children }) => {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [disguiseType, setDisguiseType] = useState('notes');
   const [currentUser, setCurrentUser] = useState(null);
+  const [session, setSession] = useState(null);
+
+  // Phase 2: Subscription states
+  const [subscription, setSubscription] = useState(null);
+  const [subscriptionAccess, setSubscriptionAccess] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+
+  const checkSubscription = async (user) => {
+    if (!user) {
+      setSubscription(null);
+      setSubscriptionAccess(null);
+      setSubscriptionLoading(false);
+      return;
+    }
+
+    try {
+      setSubscriptionLoading(true);
+      const res = await getOrInitSubscription(user);
+      setSubscription(res.subscription);
+      setSubscriptionAccess(res.access);
+    } catch (err) {
+      console.warn('Lỗi kiểm tra subscription:', err);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const refreshSubscription = async () => {
+    if (currentUser) {
+      await checkSubscription(currentUser);
+    }
+  };
+
+  const loadUserSetupState = async (user) => {
+    if (!user?.id) {
+      setIsSetupComplete(false);
+      setDisguiseType('notes');
+      setBiometricEnabled(false);
+      return;
+    }
+
+    try {
+      const userId = user.id;
+      const [setupVal, disguiseVal, bioVal] = await Promise.all([
+        getUserSecureItem('setupComplete', userId),
+        getUserSecureItem('disguiseType', userId),
+        getUserSecureItem('biometricEnabled', userId),
+      ]);
+
+      setIsSetupComplete(setupVal === 'true');
+      setDisguiseType(disguiseVal || 'notes');
+      setBiometricEnabled(bioVal === 'true');
+    } catch (err) {
+      console.warn('Lỗi tải setup state cho user:', err);
+      setIsSetupComplete(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -34,26 +125,40 @@ export const AuthProvider = ({ children }) => {
       try {
         await ensureSeedData();
 
-        const [
-          setupCompleteValue,
-          disguiseValue,
-          biometricEnabledValue,
-          compatible,
-          enrolled,
-        ] = await Promise.all([
-          secureGetItem(STORAGE_KEYS.setupComplete),
-          secureGetItem(STORAGE_KEYS.disguiseType),
-          secureGetItem(STORAGE_KEYS.biometricEnabled),
+        const [compatible, enrolled, sessionRes] = await Promise.all([
           LocalAuthentication.hasHardwareAsync(),
           LocalAuthentication.isEnrolledAsync(),
+          supabase.auth.getSession(),
         ]);
 
         if (!mounted) return;
 
-        setIsSetupComplete(setupCompleteValue === 'true');
-        setDisguiseType(disguiseValue || 'notes');
-        setBiometricEnabled(biometricEnabledValue === 'true');
         setBiometricAvailable(Boolean(compatible && enrolled));
+
+        const initialSession = sessionRes?.data?.session ?? null;
+        setSession(initialSession);
+        const initialUser = initialSession?.user ?? null;
+        setCurrentUser(initialUser);
+
+        if (initialUser) {
+          try {
+            await Promise.all([
+              loadUserSetupState(initialUser),
+              getOrCreateUserMasterKey(initialUser.id),
+              getOrInitSubscription(initialUser).then((subRes) => {
+                if (mounted) {
+                  setSubscription(subRes.subscription);
+                  setSubscriptionAccess(subRes.access);
+                }
+              }),
+            ]);
+          } catch (subErr) {
+            console.warn('Lỗi nạp setup/subscription/crypto ban đầu:', subErr);
+          }
+        } else {
+          clearActiveMasterKey();
+          setIsSetupComplete(false);
+        }
       } catch (error) {
         console.error('Bootstrap Hidder thất bại:', error);
       } finally {
@@ -65,18 +170,27 @@ export const AuthProvider = ({ children }) => {
 
     bootstrap();
 
-    // Lắng nghe trạng thái đăng nhập của Supabase
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) {
-        setCurrentUser(session?.user ?? null);
-      }
-    });
-
+    // Lắng nghe thay đổi trạng thái đăng nhập của Supabase
     const {
       data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (mounted) {
-        setCurrentUser(session?.user ?? null);
+        setSession(newSession ?? null);
+        const nextUser = newSession?.user ?? null;
+        setCurrentUser(nextUser);
+
+        if (nextUser) {
+          void checkSubscription(nextUser);
+          void loadUserSetupState(nextUser);
+          void getOrCreateUserMasterKey(nextUser.id);
+        } else {
+          clearActiveMasterKey();
+          setSubscription(null);
+          setSubscriptionAccess(null);
+          setIsSetupComplete(false);
+          setIsUnlocked(false);
+          setActiveVaultMode(null);
+        }
       }
     });
 
@@ -102,6 +216,7 @@ export const AuthProvider = ({ children }) => {
   const completeSetup = async ({ realCode, decoyCode, enableBiometric, disguise }) => {
     const normalizedRealCode = normalizeCode(realCode);
     const normalizedDecoyCode = normalizeCode(decoyCode);
+    const userId = currentUser?.id;
 
     if (!normalizedRealCode || normalizedRealCode.length < 4) {
       return { success: false, error: 'Mã thật cần ít nhất 4 ký tự.' };
@@ -112,17 +227,17 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      await secureSetItem(STORAGE_KEYS.realCode, normalizedRealCode);
+      await setUserSecureItem('realCode', userId, normalizedRealCode);
 
       if (normalizedDecoyCode) {
-        await secureSetItem(STORAGE_KEYS.decoyCode, normalizedDecoyCode);
+        await setUserSecureItem('decoyCode', userId, normalizedDecoyCode);
       } else {
-        await secureDeleteItem(STORAGE_KEYS.decoyCode);
+        await deleteUserSecureItem('decoyCode', userId);
       }
 
-      await secureSetItem(STORAGE_KEYS.biometricEnabled, enableBiometric ? 'true' : 'false');
-      await secureSetItem(STORAGE_KEYS.disguiseType, disguise || 'notes');
-      await secureSetItem(STORAGE_KEYS.setupComplete, 'true');
+      await setUserSecureItem('biometricEnabled', userId, enableBiometric ? 'true' : 'false');
+      await setUserSecureItem('disguiseType', userId, disguise || 'notes');
+      await setUserSecureItem('setupComplete', userId, 'true');
 
       setBiometricEnabled(Boolean(enableBiometric));
       setDisguiseType(disguise || 'notes');
@@ -137,9 +252,10 @@ export const AuthProvider = ({ children }) => {
 
   const attemptUnlock = async (input) => {
     try {
+      const userId = currentUser?.id;
       const [realCode, decoyCode] = await Promise.all([
-        secureGetItem(STORAGE_KEYS.realCode),
-        secureGetItem(STORAGE_KEYS.decoyCode),
+        getUserSecureItem('realCode', userId),
+        getUserSecureItem('decoyCode', userId),
       ]);
 
       const normalizedInput = normalizeCode(input);
@@ -204,8 +320,16 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: error.message };
       }
 
-      setCurrentUser(data.user);
-      return { success: true, user: data.user };
+      setSession(data.session ?? null);
+      setCurrentUser(data.user ?? null);
+      if (data.user) {
+        await Promise.all([
+          checkSubscription(data.user),
+          loadUserSetupState(data.user),
+          getOrCreateUserMasterKey(data.user.id),
+        ]);
+      }
+      return { success: true, user: data.user, session: data.session };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -222,8 +346,16 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: error.message };
       }
 
+      if (data.session) {
+        setSession(data.session);
+      }
       if (data.user) {
         setCurrentUser(data.user);
+        await Promise.all([
+          checkSubscription(data.user),
+          loadUserSetupState(data.user),
+          getOrCreateUserMasterKey(data.user.id),
+        ]);
       }
 
       return {
@@ -239,17 +371,27 @@ export const AuthProvider = ({ children }) => {
 
   const signOutUser = async () => {
     try {
+      clearActiveMasterKey();
       await supabase.auth.signOut();
+      setSession(null);
       setCurrentUser(null);
+      setSubscription(null);
+      setSubscriptionAccess(null);
+      setSubscriptionLoading(false);
+      setIsSetupComplete(false);
+      setIsUnlocked(false);
+      setActiveVaultMode(null);
       return { success: true };
     } catch (err) {
+      clearActiveMasterKey();
       return { success: false, error: err.message };
     }
   };
 
   const changeDisguiseType = async (type) => {
     try {
-      await secureSetItem(STORAGE_KEYS.disguiseType, type);
+      const userId = currentUser?.id;
+      await setUserSecureItem('disguiseType', userId, type);
       setDisguiseType(type);
       return true;
     } catch (err) {
@@ -268,6 +410,11 @@ export const AuthProvider = ({ children }) => {
       biometricEnabled,
       disguiseType,
       currentUser,
+      session,
+      subscription,
+      subscriptionAccess,
+      subscriptionLoading,
+      refreshSubscription,
       completeSetup,
       attemptUnlock,
       authenticateBiometric,
@@ -282,6 +429,10 @@ export const AuthProvider = ({ children }) => {
       biometricAvailable,
       biometricEnabled,
       currentUser,
+      session,
+      subscription,
+      subscriptionAccess,
+      subscriptionLoading,
       disguiseType,
       isInitializing,
       isSetupComplete,

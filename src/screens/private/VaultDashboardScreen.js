@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { getPendingQueueCount, subscribeToSyncChanges } from '../../services/syncManager';
 
 export default function VaultDashboardScreen({
   mode,
@@ -27,6 +28,17 @@ export default function VaultDashboardScreen({
   lastSync,
 }) {
   const isDecoy = mode === 'decoy';
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      void getPendingQueueCount(currentUser.id).then(setPendingCount);
+      const unsub = subscribeToSyncChanges(() => {
+        void getPendingQueueCount(currentUser.id).then(setPendingCount);
+      });
+      return unsub;
+    }
+  }, [currentUser, isSyncing]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -76,7 +88,11 @@ export default function VaultDashboardScreen({
             <View style={styles.syncCardInfo}>
               <Text style={styles.syncTitle}>☁️ Supabase Cloud Sync</Text>
               <Text style={styles.syncSubtitle}>
-                {lastSync ? `Đã đồng bộ lúc: ${lastSync}` : 'Chưa đồng bộ lên đám mây'}
+                {pendingCount > 0
+                  ? `⏳ Có ${pendingCount} mục chờ đồng bộ lên Cloud`
+                  : lastSync
+                  ? `Đã đồng bộ lúc: ${lastSync}`
+                  : 'Chưa đồng bộ lên đám mây'}
               </Text>
             </View>
             <TouchableOpacity
