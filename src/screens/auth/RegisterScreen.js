@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -106,10 +107,11 @@ export default function RegisterScreen({ onNavigateToLogin }) {
         >
           {/* Brand Header */}
           <View style={styles.brandContainer}>
-            <View style={styles.logoBadge}>
-              <Text style={styles.logoIcon}>🛡️</Text>
-            </View>
-            <Text style={styles.appName}>HIDDER</Text>
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
             <Text style={styles.appTagline}>Tạo không gian két bảo mật cá nhân</Text>
           </View>
 
@@ -117,7 +119,7 @@ export default function RegisterScreen({ onNavigateToLogin }) {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Đăng ký tài khoản</Text>
             <Text style={styles.cardSubtitle}>
-              Mỗi tài khoản mới sẽ nhận ngay 30 ngày trải nghiệm miễn phí toàn bộ tính năng Cloud & Két bảo mật.
+              Lưu trữ trên máy miễn phí trọn đời và nhận ngay 256 MB Cloud Storage miễn phí!
             </Text>
 
             {errorMessage ? (
@@ -282,14 +284,11 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  logoIcon: {
-    fontSize: 32,
-  },
-  appName: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#F8FAFC',
-    letterSpacing: 2,
+  brandLogo: {
+    width: 96,
+    height: 96,
+    borderRadius: 20,
+    marginBottom: 6,
   },
   appTagline: {
     fontSize: 13,

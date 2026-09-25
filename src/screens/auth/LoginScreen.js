@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -72,10 +73,11 @@ export default function LoginScreen({ onNavigateToRegister }) {
         >
           {/* Brand Header */}
           <View style={styles.brandContainer}>
-            <View style={styles.logoBadge}>
-              <Text style={styles.logoIcon}>🛡️</Text>
-            </View>
-            <Text style={styles.appName}>HIDDER</Text>
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
             <Text style={styles.appTagline}>Stealth Vault & Private Storage</Text>
           </View>
 
@@ -212,14 +214,11 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  logoIcon: {
-    fontSize: 32,
-  },
-  appName: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#F8FAFC',
-    letterSpacing: 2,
+  brandLogo: {
+    width: 96,
+    height: 96,
+    borderRadius: 20,
+    marginBottom: 6,
   },
   appTagline: {
     fontSize: 13,

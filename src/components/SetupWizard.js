@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { isValidSecretCode, maskSecretCode } from '../services/crypto';
 
 const DISGUISE_OPTIONS = [
@@ -77,7 +77,10 @@ export default function SetupWizard({ biometricAvailable, onComplete, onSignOut 
     <View style={styles.container}>
       <View style={styles.heroCard}>
         <View style={styles.heroTopRow}>
-          <Text style={styles.eyebrow}>Hidder setup</Text>
+          <View style={styles.brandRow}>
+            <Image source={require('../../assets/logo.png')} style={styles.smallLogo} resizeMode="contain" />
+            <Text style={styles.eyebrow}>Hidder setup</Text>
+          </View>
           {onSignOut ? (
             <TouchableOpacity onPress={onSignOut} style={styles.switchAccountBtn} activeOpacity={0.7}>
               <Text style={styles.switchAccountText}>Đổi tài khoản ↪</Text>
@@ -244,6 +247,16 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 12,
     fontWeight: '600',
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  smallLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
   },
   title: {
     color: '#F8FAFC',
