@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 
 export default function PasswordVaultScreen({
   items,
@@ -37,11 +38,9 @@ export default function PasswordVaultScreen({
     setRevealedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleCopy = (text, label) => {
-    // Nếu có expo-clipboard thì gọi, hoặc alert giả lập
+  const handleCopy = async (text, label) => {
     try {
-      const Clipboard = require('expo-clipboard');
-      Clipboard.setStringAsync(text);
+      await Clipboard.setStringAsync(text);
       Alert.alert('Đã sao chép', `Đã chép ${label} vào bộ nhớ tạm.`);
     } catch {
       Alert.alert('Đã chọn', `${label}: ${text}`);

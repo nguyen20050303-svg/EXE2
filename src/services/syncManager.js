@@ -1,11 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { generateId } from '../utils/helpers.js';
 import { supabase } from './supabase.js';
 import {
   uploadFile,
   downloadFile,
   deleteFile,
+  checkStorageQuota,
+  getUserStorageUsage,
   SYNC_STATUS,
 } from './cloudStorage.js';
 import { VAULT_DIRS, ensureVaultDirectories } from './fileSystem.js';
@@ -340,17 +342,27 @@ export const processSyncQueue = async (userId, options = {}) => {
       continue;
     }
 
-    // Subscription gate: Real Vault items require valid subscription/trial
-    const isRealVaultItem =
-      (item.entityType === SYNC_ENTITY_TYPES.NOTE && item.payload?.type === 'private') ||
-      item.entityType === SYNC_ENTITY_TYPES.PASSWORD ||
-      [SYNC_ENTITY_TYPES.PHOTO, SYNC_ENTITY_TYPES.VIDEO, SYNC_ENTITY_TYPES.DOCUMENT, SYNC_ENTITY_TYPES.VOICE].includes(item.entityType);
-
-    if (isRealVaultItem && !subscriptionValid) {
-      item.status = QUEUE_STATUS.FAILED;
-      item.lastError = 'Subscription expired: Gia hạn để tiếp tục đồng bộ dữ liệu Real Vault.';
-      paused++;
-      continue;
+    // Freemium Quota Enforcement:
+    // Deletions (action === DELETE) are ALWAYS allowed to free up cloud storage!
+    // Uploads are checked against user's remaining cloud quota.
+    if (
+      item.action !== SYNC_ACTIONS.DELETE &&
+      [
+        SYNC_ENTITY_TYPES.PHOTO,
+        SYNC_ENTITY_TYPES.VIDEO,
+        SYNC_ENTITY_TYPES.DOCUMENT,
+        SYNC_ENTITY_TYPES.VOICE,
+      ].includes(item.entityType)
+    ) {
+      const estimatedSize = Number(item.payload?.sizeBytes) || 0;
+      const quotaCheck = await checkStorageQuota(estimatedSize);
+      if (!quotaCheck.allowed) {
+        item.status = QUEUE_STATUS.FAILED;
+        item.lastError =
+          'Cloud Storage Full: Dung lượng lưu trữ đám mây đã đầy. Vui lòng nâng cấp gói để tiếp tục tải lên.';
+        paused++;
+        continue;
+      }
     }
 
     item.status = QUEUE_STATUS.SYNCING;
@@ -698,21 +710,20 @@ export const syncAll = async (options = {}) => {
       };
     }
 
-    // Subscription evaluation
+    // Freemium Quota & Storage evaluation
+    let quotaStatus = null;
     try {
       const subRecord = await fetchSubscription(user.id);
-      if (subRecord) {
-        const access = evaluateAccess(subRecord);
-        if (!access.valid) {
-          return {
-            success: false,
-            expired: true,
-            error: 'Gói dịch vụ đã hết hạn. Vui lòng gia hạn để tiếp tục đồng bộ.',
-          };
-        }
-      }
+      const usage = await getUserStorageUsage();
+      const access = evaluateAccess(subRecord, usage.storage_used);
+      quotaStatus = {
+        storageUsed: usage.storage_used,
+        storageLimit: usage.storage_limit,
+        isOverQuota: usage.is_over_quota,
+        plan: access.plan,
+      };
     } catch (subErr) {
-      console.warn('Lỗi kiểm tra subscription khi syncAll:', subErr.message);
+      console.warn('Lỗi kiểm tra quota khi syncAll:', subErr.message);
     }
 
     // Step A: Process offline queue (Push)

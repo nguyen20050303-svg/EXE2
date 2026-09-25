@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
+import { translateAuthError } from '../../utils/helpers';
 
 export default function RegisterScreen({ onNavigateToLogin }) {
   const { signUpWithEmail } = useContext(AuthContext);
@@ -21,6 +22,8 @@ export default function RegisterScreen({ onNavigateToLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successInfo, setSuccessInfo] = useState('');
@@ -34,7 +37,7 @@ export default function RegisterScreen({ onNavigateToLogin }) {
     setErrorMessage('');
     setSuccessInfo('');
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
       setErrorMessage('Vui lòng nhập địa chỉ Email.');
       return;
@@ -65,7 +68,7 @@ export default function RegisterScreen({ onNavigateToLogin }) {
     setLoading(false);
 
     if (!result.success) {
-      setErrorMessage(result.error || 'Đăng ký không thành công. Vui lòng thử lại.');
+      setErrorMessage(translateAuthError(result.error));
       return;
     }
 
@@ -74,8 +77,14 @@ export default function RegisterScreen({ onNavigateToLogin }) {
         'Tài khoản đã được tạo thành công! Vui lòng kiểm tra hộp thư email của bạn để xác thực liên kết trước khi đăng nhập.'
       );
       Alert.alert(
-        'Đăng ký thành công',
-        'Vui lòng kiểm tra email của bạn để xác nhận tài khoản, sau đó chuyển sang Đăng nhập.'
+        'Xác thực Email',
+        'Chúng tôi đã gửi link kích hoạt đến email của bạn. Vui lòng xác nhận trước khi đăng nhập.',
+        [
+          {
+            text: 'Đến Đăng nhập',
+            onPress: onNavigateToLogin,
+          },
+        ]
       );
     } else {
       // Auto logged in via Supabase session
@@ -147,39 +156,59 @@ export default function RegisterScreen({ onNavigateToLogin }) {
             {/* Password Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Mật khẩu</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Tối thiểu 6 ký tự"
-                placeholderTextColor="#64748B"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (errorMessage) setErrorMessage('');
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
+              <View style={styles.passwordWrapper}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Tối thiểu 6 ký tự"
+                  placeholderTextColor="#64748B"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errorMessage) setErrorMessage('');
+                  }}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
+                  editable={!loading}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.eyeText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Confirm Password Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Xác nhận mật khẩu</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nhập lại mật khẩu"
-                placeholderTextColor="#64748B"
-                value={confirmPassword}
-                onChangeText={(text) => {
-                  setConfirmPassword(text);
-                  if (errorMessage) setErrorMessage('');
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
+              <View style={styles.passwordWrapper}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Nhập lại mật khẩu"
+                  placeholderTextColor="#64748B"
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    if (errorMessage) setErrorMessage('');
+                  }}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
+                  editable={!loading}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowConfirmPassword((prev) => !prev)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.eyeText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Submit Button */}
@@ -349,6 +378,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    color: '#F8FAFC',
+    fontSize: 15,
+  },
+  eyeButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  eyeText: {
+    fontSize: 18,
   },
   submitButton: {
     backgroundColor: '#38BDF8',

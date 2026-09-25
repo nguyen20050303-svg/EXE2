@@ -1,10 +1,11 @@
-import React, { createContext, useEffect, useMemo, useState } from 'react';
-import { AppState } from 'react-native';
+import React, { createContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Platform } from 'react-native';
+
 import * as LocalAuthentication from 'expo-local-authentication';
 import { ensureSeedData } from '../services/database';
 import { secureDeleteItem, secureGetItem, secureSetItem } from '../services/secureStorage';
 import { supabase } from '../services/supabase';
-import { getOrInitSubscription } from '../services/subscriptionService';
+import { getOrInitSubscription, getCachedSubscription, evaluateAccess } from '../services/subscriptionService';
 import { getOrCreateUserMasterKey, clearActiveMasterKey } from '../services/crypto';
 
 export const AuthContext = createContext(null);
@@ -28,19 +29,15 @@ const getUserSecureItem = async (keyName, userId) => {
   // Migration fallback: If user key doesn't exist yet, check legacy global key
   if (val === null) {
     const legacyKey = STORAGE_KEYS[keyName];
-    const legacyVal = await secureGetItem(legacyKey);
-    if (legacyVal !== null) {
-      val = legacyVal;
-      await secureSetItem(userKey, legacyVal);
-      await secureDeleteItem(legacyKey);
-    }
+    val = await secureGetItem(legacyKey);
   }
-
   return val;
 };
 
 const setUserSecureItem = async (keyName, userId, value) => {
-  if (!userId) return;
+  if (!userId) {
+    throw new Error('Cần userId để lưu dữ liệu SecureStore.');
+  }
   const userKey = `${STORAGE_KEYS[keyName]}.${userId}`;
   await secureSetItem(userKey, value);
 };
@@ -62,6 +59,13 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [session, setSession] = useState(null);
 
+  // Ref to prevent Auto-Lock when system Media / Document pickers are open
+  const isPickerActiveRef = useRef(false);
+
+  const setPickerActive = (active) => {
+    isPickerActiveRef.current = Boolean(active);
+  };
+
   // Phase 2: Subscription states
   const [subscription, setSubscription] = useState(null);
   const [subscriptionAccess, setSubscriptionAccess] = useState(null);
@@ -82,6 +86,10 @@ export const AuthProvider = ({ children }) => {
       setSubscriptionAccess(res.access);
     } catch (err) {
       console.warn('Lỗi kiểm tra subscription:', err);
+      const cached = await getCachedSubscription(user?.id);
+      const fallbackAccess = evaluateAccess(cached);
+      setSubscription(cached);
+      setSubscriptionAccess(fallbackAccess);
     } finally {
       setSubscriptionLoading(false);
     }
@@ -173,24 +181,35 @@ export const AuthProvider = ({ children }) => {
     // Lắng nghe thay đổi trạng thái đăng nhập của Supabase
     const {
       data: { subscription: authSubscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (mounted) {
         setSession(newSession ?? null);
         const nextUser = newSession?.user ?? null;
-        setCurrentUser(nextUser);
 
-        if (nextUser) {
-          void checkSubscription(nextUser);
-          void loadUserSetupState(nextUser);
-          void getOrCreateUserMasterKey(nextUser.id);
-        } else {
-          clearActiveMasterKey();
-          setSubscription(null);
-          setSubscriptionAccess(null);
-          setIsSetupComplete(false);
-          setIsUnlocked(false);
-          setActiveVaultMode(null);
-        }
+        setCurrentUser((prevUser) => {
+          // If the user ID has not changed (e.g. session refresh or reauthentication),
+          // don't re-trigger full bootstrap which could flash loading screens
+          if (prevUser?.id && nextUser?.id && prevUser.id === nextUser.id) {
+            return nextUser;
+          }
+
+          if (nextUser) {
+            // SIGNED_IN event fires after email confirmation link is clicked.
+            // At this point prevUser is null (new tab opened from email),
+            // so we must run the full bootstrap here.
+            void checkSubscription(nextUser);
+            void loadUserSetupState(nextUser);
+            void getOrCreateUserMasterKey(nextUser.id);
+          } else {
+            clearActiveMasterKey();
+            setSubscription(null);
+            setSubscriptionAccess(null);
+            setIsSetupComplete(false);
+            setIsUnlocked(false);
+            setActiveVaultMode(null);
+          }
+          return nextUser;
+        });
       }
     });
 
@@ -202,7 +221,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState !== 'active') {
+      if (nextState !== 'active' && !isPickerActiveRef.current) {
         setIsUnlocked(false);
         setActiveVaultMode(null);
       }
@@ -311,8 +330,9 @@ export const AuthProvider = ({ children }) => {
 
   const signInWithEmail = async (email, password) => {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: normalizedEmail,
         password,
       });
 
@@ -337,32 +357,46 @@ export const AuthProvider = ({ children }) => {
 
   const signUpWithEmail = async (email, password) => {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // On web, redirect back to the current app URL so Supabase can embed the
+      // confirmation token in the URL hash and detectSessionInUrl can pick it up.
+      const emailRedirectTo =
+        Platform.OS === 'web' && typeof window !== 'undefined'
+          ? window.location.origin
+          : undefined;
+
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: normalizedEmail,
         password,
+        options: emailRedirectTo ? { emailRedirectTo } : undefined,
       });
 
       if (error) {
         return { success: false, error: error.message };
       }
 
-      if (data.session) {
+      const needsConfirmation = !data.session;
+
+      // Only set session and currentUser if session was created (email confirmation off or auto-confirmed)
+      if (data.session && data.user) {
         setSession(data.session);
-      }
-      if (data.user) {
         setCurrentUser(data.user);
         await Promise.all([
           checkSubscription(data.user),
           loadUserSetupState(data.user),
           getOrCreateUserMasterKey(data.user.id),
         ]);
+      } else {
+        setSession(null);
+        setCurrentUser(null);
       }
 
       return {
         success: true,
         user: data.user,
         session: data.session,
-        needsConfirmation: !data.session,
+        needsConfirmation,
       };
     } catch (err) {
       return { success: false, error: err.message };
@@ -400,6 +434,84 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const reauthenticateWithPassword = async (password) => {
+    if (!currentUser?.email) {
+      return { success: false, error: 'Chưa đăng nhập tài khoản.' };
+    }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: 'Mật khẩu tài khoản không chính xác.' };
+      }
+
+      setSession(data.session ?? null);
+      setCurrentUser(data.user ?? null);
+      return { success: true, user: data.user };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateRealCode = async (newCode) => {
+    const normalized = normalizeCode(newCode);
+    if (!normalized || normalized.length < 4) {
+      return { success: false, error: 'Mã thật cần ít nhất 4 ký tự.' };
+    }
+    try {
+      const userId = currentUser?.id;
+      const decoy = await getUserSecureItem('decoyCode', userId);
+      if (decoy && normalizeCode(decoy) === normalized) {
+        return { success: false, error: 'Mã thật không được trùng với mã mồi Decoy.' };
+      }
+      await setUserSecureItem('realCode', userId, normalized);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: 'Không thể cập nhật Real PIN.' };
+    }
+  };
+
+  const updateDecoyCode = async (newCode) => {
+    const normalized = normalizeCode(newCode);
+    const userId = currentUser?.id;
+    try {
+      if (!normalized) {
+        await deleteUserSecureItem('decoyCode', userId);
+        return { success: true };
+      }
+      const real = await getUserSecureItem('realCode', userId);
+      if (real && normalizeCode(real) === normalized) {
+        return { success: false, error: 'Mã mồi Decoy phải khác mã thật.' };
+      }
+      await setUserSecureItem('decoyCode', userId, normalized);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: 'Không thể cập nhật Decoy PIN.' };
+    }
+  };
+
+  const recoverRealPinWithAccount = async ({ accountPassword, newPin }) => {
+    const authRes = await reauthenticateWithPassword(accountPassword);
+    if (!authRes.success) {
+      return authRes;
+    }
+    return updateRealCode(newPin);
+  };
+
+  const updateBiometricSetting = async (enabled) => {
+    try {
+      const userId = currentUser?.id;
+      await setUserSecureItem('biometricEnabled', userId, enabled ? 'true' : 'false');
+      setBiometricEnabled(Boolean(enabled));
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
   const value = useMemo(
     () => ({
       isInitializing,
@@ -419,7 +531,13 @@ export const AuthProvider = ({ children }) => {
       attemptUnlock,
       authenticateBiometric,
       lockVault,
+      setPickerActive,
       changeDisguiseType,
+      reauthenticateWithPassword,
+      updateRealCode,
+      updateDecoyCode,
+      recoverRealPinWithAccount,
+      updateBiometricSetting,
       signInWithEmail,
       signUpWithEmail,
       signOutUser,

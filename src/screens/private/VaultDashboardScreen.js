@@ -120,7 +120,7 @@ export default function VaultDashboardScreen({
               onPress={() => onChangeDisguise('notes')}
             >
               <Text style={[styles.disguiseBtnText, disguiseType === 'notes' && styles.disguiseBtnTextActive]}>
-                📝 Ghi chú (Notes)
+                📝 Ghi chú
               </Text>
             </TouchableOpacity>
 
@@ -129,7 +129,25 @@ export default function VaultDashboardScreen({
               onPress={() => onChangeDisguise('calculator')}
             >
               <Text style={[styles.disguiseBtnText, disguiseType === 'calculator' && styles.disguiseBtnTextActive]}>
-                🧮 Máy tính (Calculator)
+                🧮 Máy tính
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.disguiseBtn, disguiseType === 'weather' && styles.disguiseBtnActive]}
+              onPress={() => onChangeDisguise('weather')}
+            >
+              <Text style={[styles.disguiseBtnText, disguiseType === 'weather' && styles.disguiseBtnTextActive]}>
+                ⛅ Thời tiết
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.disguiseBtn, disguiseType === 'calendar' && styles.disguiseBtnActive]}
+              onPress={() => onChangeDisguise('calendar')}
+            >
+              <Text style={[styles.disguiseBtnText, disguiseType === 'calendar' && styles.disguiseBtnTextActive]}>
+                📅 Lịch biểu
               </Text>
             </TouchableOpacity>
           </View>
@@ -374,16 +392,18 @@ const styles = StyleSheet.create({
   },
   disguiseButtons: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     backgroundColor: '#0F172A',
     borderRadius: 12,
-    padding: 4,
-    gap: 6,
+    padding: 6,
+    gap: 8,
   },
   disguiseBtn: {
-    flex: 1,
+    width: '48%',
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   disguiseBtnActive: {
     backgroundColor: '#1E293B',

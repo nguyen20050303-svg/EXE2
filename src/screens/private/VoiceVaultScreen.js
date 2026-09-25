@@ -9,6 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { confirmAction } from '../../utils/helpers';
+import {
+  useAudioRecorder,
+  createAudioPlayer,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  RecordingPresets,
+} from 'expo-audio';
 
 export default function VoiceVaultScreen({
   voices,
@@ -23,7 +31,7 @@ export default function VoiceVaultScreen({
   const [playingId, setPlayingId] = useState(null);
   const [customName, setCustomName] = useState('');
 
-  const recordingRef = useRef(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const soundRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -31,44 +39,35 @@ export default function VoiceVaultScreen({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {});
+        try {
+          soundRef.current.pause();
+          soundRef.current.remove();
+        } catch {}
       }
     };
   }, []);
 
-  const getAudioModule = () => {
-    try {
-      const { Audio } = require('expo-av');
-      return Audio;
-    } catch {
-      return null;
-    }
-  };
-
   const startRecording = async () => {
-    const Audio = getAudioModule();
-    if (!Audio) {
-      Alert.alert('Chưa sẵn sàng', 'Mô-đun âm thanh đang được khởi tạo.');
+    if (!recorder) {
+      Alert.alert('Chưa sẵn sàng', 'Mô-đun ghi âm đang được khởi tạo.');
       return;
     }
 
     try {
-      const permission = await Audio.requestPermissionsAsync();
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         Alert.alert('Cần cấp quyền', 'Ứng dụng cần quyền Micro để ghi âm.');
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      await recorder.prepareToRecordAsync();
+      recorder.record();
 
-      recordingRef.current = recording;
       setIsRecording(true);
       setRecordingSeconds(0);
 
@@ -83,14 +82,12 @@ export default function VoiceVaultScreen({
 
   const stopRecording = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    const recording = recordingRef.current;
-    if (!recording) return;
+    if (!recorder) return;
 
     try {
       setIsRecording(false);
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      recordingRef.current = null;
+      await recorder.stop();
+      const uri = recorder.uri;
 
       if (uri) {
         await onSaveVoice(uri, customName);
@@ -103,12 +100,12 @@ export default function VoiceVaultScreen({
   };
 
   const playSound = async (item) => {
-    const Audio = getAudioModule();
-    if (!Audio) return;
-
     try {
       if (soundRef.current) {
-        await soundRef.current.unloadAsync();
+        try {
+          soundRef.current.pause();
+          soundRef.current.remove();
+        } catch {}
         soundRef.current = null;
       }
 
@@ -117,23 +114,21 @@ export default function VoiceVaultScreen({
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
       });
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: item.uri },
-        { shouldPlay: true },
-        (status) => {
-          if (status.didJustFinish) {
-            setPlayingId(null);
-          }
-        }
-      );
-
-      soundRef.current = sound;
+      const player = createAudioPlayer({ uri: item.uri });
+      soundRef.current = player;
       setPlayingId(item.id);
+
+      player.play();
+      player.addListener('playbackStatusUpdate', (status) => {
+        if (status.playbackState === 'finished' || status.didJustFinish) {
+          setPlayingId(null);
+        }
+      });
     } catch (err) {
       console.error('Lỗi phát âm thanh:', err);
       Alert.alert('Lỗi', 'Không thể phát bản ghi âm.');
@@ -232,14 +227,12 @@ export default function VoiceVaultScreen({
                 <TouchableOpacity
                   style={styles.deleteBtn}
                   onPress={() => {
-                    Alert.alert('Xóa ghi âm', `Xóa bản ghi "${item.name}"?`, [
-                      { text: 'Hủy', style: 'cancel' },
-                      {
-                        text: 'Xóa',
-                        style: 'destructive',
-                        onPress: () => onDeleteVoice && onDeleteVoice(item.id),
-                      },
-                    ]);
+                    confirmAction({
+                      title: 'Xóa ghi âm',
+                      message: `Xóa bản ghi "${item.name}"?`,
+                      confirmText: 'Xóa',
+                      onConfirm: () => onDeleteVoice && onDeleteVoice(item.id),
+                    });
                   }}
                 >
                   <Text style={styles.deleteBtnText}>✕</Text>

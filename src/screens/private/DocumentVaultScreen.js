@@ -1,13 +1,13 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { confirmAction } from '../../utils/helpers';
 
 export default function DocumentVaultScreen({
   documents,
@@ -88,14 +88,12 @@ export default function DocumentVaultScreen({
               <TouchableOpacity
                 style={styles.deleteBtn}
                 onPress={() => {
-                  Alert.alert('Xóa tài liệu', `Xóa vĩnh viễn file "${item.name}" khỏi kho?`, [
-                    { text: 'Hủy', style: 'cancel' },
-                    {
-                      text: 'Xóa',
-                      style: 'destructive',
-                      onPress: () => onDeleteDocument && onDeleteDocument(item.id),
-                    },
-                  ]);
+                  confirmAction({
+                    title: 'Xóa tài liệu',
+                    message: `Xóa vĩnh viễn file "${item.name}" khỏi kho?`,
+                    confirmText: 'Xóa',
+                    onConfirm: () => onDeleteDocument && onDeleteDocument(item.id),
+                  });
                 }}
               >
                 <Text style={styles.deleteBtnText}>✕</Text>

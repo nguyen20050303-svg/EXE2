@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   FlatList,
   Modal,
   StyleSheet,
@@ -8,9 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, confirmAction } from '../../utils/helpers';
 
-export default function VaultNotesScreen({ mode, notes, onCreateNote, onBack, onQuickEscape }) {
+export default function VaultNotesScreen({ mode, notes, onCreateNote, onDeleteNote, onBack, onQuickEscape }) {
   const [composerVisible, setComposerVisible] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -30,22 +31,18 @@ export default function VaultNotesScreen({ mode, notes, onCreateNote, onBack, on
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>← Vault</Text>
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backText}>← Quay lại</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.escapeButton} onPress={onQuickEscape}>
-          <Text style={styles.escapeText}>Quick Escape</Text>
+        <Text style={styles.headerTitle}>{isDecoy ? 'Kho Ghi Chú' : 'Private Notes'}</Text>
+        <TouchableOpacity style={styles.quickEscapeBtn} onPress={onQuickEscape}>
+          <Text style={styles.quickEscapeText}>🔒 Thoát</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>{isDecoy ? 'Decoy notes' : 'Private notes'}</Text>
-      <Text style={styles.subtitle}>
-        {isDecoy
-          ? 'Các ghi chú vô hại để đánh lạc hướng khi cần.'
-          : 'Không gian để lưu thông tin riêng tư, checklist nhạy cảm và dữ liệu cá nhân.'}
-      </Text>
-
+      {/* List */}
       <FlatList
         data={notes}
         keyExtractor={(item) => item.id}
@@ -53,8 +50,25 @@ export default function VaultNotesScreen({ mode, notes, onCreateNote, onBack, on
         renderItem={({ item }) => (
           <View style={styles.noteCard}>
             <View style={styles.noteHeader}>
-              <Text style={styles.noteTitle}>{item.title}</Text>
-              <Text style={styles.noteDate}>{formatDate(item.updatedAt)}</Text>
+              <View style={styles.noteHeaderLeft}>
+                <Text style={styles.noteTitle}>{item.title}</Text>
+                <Text style={styles.noteDate}>{formatDate(item.updatedAt)}</Text>
+              </View>
+              {onDeleteNote ? (
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => {
+                    confirmAction({
+                      title: 'Xóa ghi chú',
+                      message: `Xóa ghi chú "${item.title}" khỏi kho bí mật?`,
+                      confirmText: 'Xóa',
+                      onConfirm: () => onDeleteNote(item.id),
+                    });
+                  }}
+                >
+                  <Text style={styles.deleteBtnText}>✕</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
             <Text style={styles.noteBody}>{item.content}</Text>
           </View>
@@ -161,15 +175,32 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 8,
   },
-  noteTitle: {
+  noteHeaderLeft: {
     flex: 1,
+  },
+  noteTitle: {
     color: '#F8FAFC',
     fontSize: 16,
     fontWeight: '700',
+    marginBottom: 2,
   },
   noteDate: {
     color: '#94A3B8',
     fontSize: 12,
+  },
+  deleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  deleteBtnText: {
+    color: '#F87171',
+    fontSize: 13,
+    fontWeight: '700',
   },
   noteBody: {
     color: '#CBD5E1',

@@ -48,7 +48,9 @@ EXE2/
 │   │   ├── public/                # Các màn hình ngụy trang công khai
 │   │   │   ├── CalculatorScreen.js# Vỏ bọc Máy tính cầm tay
 │   │   │   ├── NoteListScreen.js  # Vỏ bọc Danh sách ghi chú
-│   │   │   └── NoteDetailScreen.js# Chi tiết ghi chú công khai
+│   │   │   ├── NoteDetailScreen.js# Chi tiết ghi chú công khai
+│   │   │   ├── WeatherScreen.js   # Vỏ bọc Dự báo thời tiết
+│   │   │   └── CalendarScreen.js  # Vỏ bọc Lịch & Sự kiện cá nhân
 │   │   └── private/               # Các màn hình bên trong Két sắt
 │   │       ├── VaultDashboardScreen.js # Bảng điều khiển trung tâm của Vault
 │   │       ├── VaultNotesScreen.js     # Ghi chú bí mật
@@ -83,9 +85,13 @@ flowchart TD
     PublicShell --> ModeSelect{Loại ngụy trang?}
     ModeSelect -- Notes --> NoteScreen[Giao diện Notes: Nhập mã vào ô Tìm kiếm]
     ModeSelect -- Calculator --> CalcScreen[Giao diện Máy tính: Nhập mã rồi bấm '=']
+    ModeSelect -- Weather --> WeatherScr[Giao diện Thời tiết: Nhập mã vào ô Tìm thành phố]
+    ModeSelect -- Calendar --> CalendarScr[Giao diện Lịch: Nhập mã vào ô Tìm sự kiện]
 
     NoteScreen --> AuthCheck{Kiểm tra mã}
     CalcScreen --> AuthCheck
+    WeatherScr --> AuthCheck
+    CalendarScr --> AuthCheck
 
     AuthCheck -- Trùng Real Code hoặc FaceID --> RealVault[Real Vault: Kho bí mật thực sự]
     AuthCheck -- Trùng Decoy Code --> DecoyVault[Decoy Vault: Kho giả vô hại]
@@ -127,6 +133,22 @@ Gồm 6 phân hệ quản lý dữ liệu an toàn:
 ### 4.4. Cơ chế phòng thủ khẩn cấp
 * **Quick Escape:** Nút đỏ góc trên màn hình cho phép thoát tức thì ra ngoài vỏ bọc công khai.
 * **Auto-Lock on Background:** Lắng nghe sự kiện `AppState`, tự động khóa và xóa quyền truy cập ngay khi người dùng thoát ra ngoài màn hình chính hoặc chuyển app khác.
+
+### 4.5. Mô hình Freemium Cloud Storage (Google Drive / Dropbox Style)
+* **Lưu trữ Cục bộ (Local Storage):** Hoàn toàn **MIỄN PHÍ TRỌN ĐỜI**, không có paywall, không giới hạn số lượng ảnh, video, tài liệu lưu trên máy.
+* **Lưu trữ Đám mây (Cloud Storage):**
+  * Tặng sẵn **256 MB miễn phí vĩnh viễn** cho mọi tài khoản vừa đăng ký.
+  * Tính năng Cloud Sync là tùy chọn, chỉ kích hoạt khi người dùng muốn sao lưu.
+  * Chỉ các file tải lên Cloud thành công (`sync_status = 'CLOUD'`) mới tính vào hạn mức Cloud Storage.
+* **Các gói dung lượng Cloud:**
+  * **Free:** 256 MB (0đ/tháng - Vĩnh viễn)
+  * **Basic:** 500 MB (12.000đ/tháng)
+  * **Standard:** 1.5 GB (32.000đ/tháng)
+  * **Premium:** 5 GB (52.000đ/tháng)
+* **Cơ chế Kiểm soát Hạn ngạch & Hết hạn (Quota & Downgrade Handling):**
+  * Kiểm soát dung lượng Authoritative từ máy chủ (Server-side RPC `check_storage_quota`).
+  * Khi gói trả phí hết hạn: Hệ thống tự động chuyển về gói Free 256 MB, **TUYỆT ĐỐI KHÔNG XÓA FILE CỦA NGƯỜI DÙNG**.
+  * Nếu người dùng vượt quá dung lượng sau khi hạ gói: Vẫn có thể xem, tải và xóa các file Cloud cũ để giải phóng bộ nhớ, chỉ tạm thời chặn tải lên file mới cho đến khi có khoảng trống hoặc nâng cấp gói.
 
 ---
 

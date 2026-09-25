@@ -13,12 +13,14 @@ import {
   View,
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
+import { translateAuthError } from '../../utils/helpers';
 
 export default function LoginScreen({ onNavigateToRegister }) {
   const { signInWithEmail } = useContext(AuthContext);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -30,7 +32,7 @@ export default function LoginScreen({ onNavigateToRegister }) {
   const handleLogin = async () => {
     setErrorMessage('');
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
       setErrorMessage('Vui lòng nhập địa chỉ Email.');
       return;
@@ -51,7 +53,8 @@ export default function LoginScreen({ onNavigateToRegister }) {
     setLoading(false);
 
     if (!result.success) {
-      setErrorMessage(result.error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      console.warn('Lỗi đăng nhập từ Supabase:', result.error);
+      setErrorMessage(translateAuthError(result.error));
     }
   };
 
@@ -112,20 +115,30 @@ export default function LoginScreen({ onNavigateToRegister }) {
             {/* Password Input */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Mật khẩu</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nhập mật khẩu của bạn"
-                placeholderTextColor="#64748B"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (errorMessage) setErrorMessage('');
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
+              <View style={styles.passwordWrapper}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Nhập mật khẩu của bạn"
+                  placeholderTextColor="#64748B"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errorMessage) setErrorMessage('');
+                  }}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="password"
+                  editable={!loading}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.eyeText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Submit Button */}
@@ -275,6 +288,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    color: '#F8FAFC',
+    fontSize: 15,
+  },
+  eyeButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  eyeText: {
+    fontSize: 18,
   },
   submitButton: {
     backgroundColor: '#38BDF8',

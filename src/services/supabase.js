@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 export const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://gkbeywmdajjencczncdv.supabase.co';
@@ -18,6 +19,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     storage: customStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // On web, Supabase embeds the session token in the URL hash after email confirmation.
+    // detectSessionInUrl must be TRUE so the client picks it up automatically.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });

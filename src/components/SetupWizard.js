@@ -13,9 +13,19 @@ const DISGUISE_OPTIONS = [
     label: 'Máy tính (Calculator)',
     description: 'Ngụy trang thành máy tính số học thật, gõ mã và bấm dấu = để mở kho.',
   },
+  {
+    key: 'weather',
+    label: 'Thời tiết (Weather)',
+    description: 'Ngụy trang thành dự báo thời tiết, mở kho qua ô tìm kiếm thành phố.',
+  },
+  {
+    key: 'calendar',
+    label: 'Lịch & Sự kiện (Calendar)',
+    description: 'Ngụy trang thành ứng dụng lịch biểu, mở kho qua ô tìm kiếm sự kiện.',
+  },
 ];
 
-export default function SetupWizard({ biometricAvailable, onComplete }) {
+export default function SetupWizard({ biometricAvailable, onComplete, onSignOut }) {
   const [step, setStep] = useState(0);
   const [disguise, setDisguise] = useState('notes');
   const [realCode, setRealCode] = useState('');
@@ -66,7 +76,14 @@ export default function SetupWizard({ biometricAvailable, onComplete }) {
   return (
     <View style={styles.container}>
       <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Hidder setup</Text>
+        <View style={styles.heroTopRow}>
+          <Text style={styles.eyebrow}>Hidder setup</Text>
+          {onSignOut ? (
+            <TouchableOpacity onPress={onSignOut} style={styles.switchAccountBtn} activeOpacity={0.7}>
+              <Text style={styles.switchAccountText}>Đổi tài khoản ↪</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
         <Text style={styles.title}>{stepTitle}</Text>
         <Text style={styles.description}>
           Bảo mật cấp thiết bị. Mã PIN và cấu hình ngụy trang được lưu mã hóa an toàn trên thiết bị của bạn.
@@ -101,14 +118,22 @@ export default function SetupWizard({ biometricAvailable, onComplete }) {
             <Text style={styles.label}>Mã thật</Text>
             <TextInput
               style={styles.input}
-              placeholder="Ví dụ: 2468 hoặc luna.note"
+              placeholder={disguise === 'calculator' ? 'Ví dụ: 2468 hoặc 13579' : 'Ví dụ: 2468 hoặc luna.note'}
               placeholderTextColor="#9CA3AF"
               value={realCode}
               onChangeText={setRealCode}
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <Text style={styles.helperText}>Mã này sẽ mở vault thật khi nhập trong ô tìm kiếm của Notes.</Text>
+            <Text style={styles.helperText}>
+              {disguise === 'calculator'
+                ? 'Mã này sẽ mở vault thật khi nhập mã số rồi ấn dấu = trên Máy tính.'
+                : disguise === 'weather'
+                ? 'Mã này sẽ mở vault thật khi nhập vào thanh tìm thành phố của Thời tiết.'
+                : disguise === 'calendar'
+                ? 'Mã này sẽ mở vault thật khi nhập vào ô tìm sự kiện của Lịch.'
+                : 'Mã này sẽ mở vault thật khi nhập trong ô tìm kiếm của Notes.'}
+            </Text>
           </>
         ) : null}
 
@@ -133,7 +158,9 @@ export default function SetupWizard({ biometricAvailable, onComplete }) {
             <Text style={styles.summaryTitle}>Tóm tắt cấu hình</Text>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Disguise</Text>
-              <Text style={styles.summaryValue}>Notes</Text>
+              <Text style={styles.summaryValue}>
+                {DISGUISE_OPTIONS.find((o) => o.key === disguise)?.label || disguise}
+              </Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Mã thật</Text>
@@ -193,12 +220,30 @@ const styles = StyleSheet.create({
   heroCard: {
     marginBottom: 18,
   },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
   eyebrow: {
     color: '#93C5FD',
     textTransform: 'uppercase',
     letterSpacing: 1.8,
     fontSize: 12,
-    marginBottom: 10,
+  },
+  switchAccountBtn: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  switchAccountText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
   },
   title: {
     color: '#F8FAFC',

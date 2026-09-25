@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   StyleSheet,
@@ -9,6 +8,25 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { VideoView, useVideoPlayer } from 'expo-video';
+import { confirmAction } from '../../utils/helpers';
+
+function VaultVideoPlayer({ uri, style }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = false;
+    p.play();
+  });
+
+  return (
+    <VideoView
+      style={style}
+      player={player}
+      allowsFullscreen
+      allowsPictureInPicture
+      startsPictureInPictureAutomatically={false}
+    />
+  );
+}
 
 export default function VideoVaultScreen({
   videos,
@@ -20,17 +38,6 @@ export default function VideoVaultScreen({
   onQuickEscape,
 }) {
   const [playingVideo, setPlayingVideo] = useState(null);
-
-  // Lazy require Video component from expo-av to avoid crash if expo-av native module is linking
-  let VideoComponent = null;
-  let ResizeMode = null;
-  try {
-    const ExpoAv = require('expo-av');
-    VideoComponent = ExpoAv.Video;
-    ResizeMode = ExpoAv.ResizeMode;
-  } catch {
-    // fallback
-  }
 
   const formatDuration = (seconds) => {
     if (!seconds) return '00:00';
@@ -99,14 +106,12 @@ export default function VideoVaultScreen({
               <TouchableOpacity
                 style={styles.deleteBtn}
                 onPress={() => {
-                  Alert.alert('Xóa video', 'Bạn có chắc muốn xóa video này khỏi kho?', [
-                    { text: 'Hủy', style: 'cancel' },
-                    {
-                      text: 'Xóa',
-                      style: 'destructive',
-                      onPress: () => onDeleteVideo && onDeleteVideo(item.id),
-                    },
-                  ]);
+                  confirmAction({
+                    title: 'Xóa video',
+                    message: 'Bạn có chắc muốn xóa video này khỏi kho?',
+                    confirmText: 'Xóa',
+                    onConfirm: () => onDeleteVideo && onDeleteVideo(item.id),
+                  });
                 }}
               >
                 <Text style={styles.deleteBtnText}>✕</Text>
@@ -142,14 +147,10 @@ export default function VideoVaultScreen({
           </View>
 
           <View style={styles.videoWrapper}>
-            {VideoComponent ? (
-              <VideoComponent
-                source={{ uri: playingVideo?.uri }}
+            {playingVideo ? (
+              <VaultVideoPlayer
+                uri={playingVideo.uri}
                 style={styles.videoPlayer}
-                useNativeControls
-                resizeMode={ResizeMode?.CONTAIN || 'contain'}
-                isLooping={false}
-                shouldPlay
               />
             ) : (
               <View style={styles.noPlayerBox}>

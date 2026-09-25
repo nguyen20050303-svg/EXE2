@@ -14,9 +14,16 @@ import {
 import { AuthContext } from '../../context/AuthContext';
 import { getUserStorageUsage } from '../../services/cloudStorage';
 import { getPendingQueueCount, subscribeToSyncChanges } from '../../services/syncManager';
-import { formatBytes } from '../../utils/helpers';
+import { formatBytes, confirmAction } from '../../utils/helpers';
 
-export default function AccountScreen({ onBack, onSyncNow, onOpenSubscription, isSyncing, lastSync }) {
+export default function AccountScreen({
+  onBack,
+  onSyncNow,
+  onOpenSubscription,
+  onOpenSecuritySettings,
+  isSyncing,
+  lastSync,
+}) {
   const {
     currentUser,
     subscriptionAccess,
@@ -97,16 +104,14 @@ export default function AccountScreen({ onBack, onSyncNow, onOpenSubscription, i
   };
 
   const handleSignOut = () => {
-    Alert.alert('Xác nhận đăng xuất', 'Bạn có chắc chắn muốn đăng xuất tài khoản này khỏi thiết bị?', [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Đăng xuất',
-        style: 'destructive',
-        onPress: async () => {
-          await signOutUser();
-        },
+    confirmAction({
+      title: 'Xác nhận đăng xuất',
+      message: 'Bạn có chắc chắn muốn đăng xuất tài khoản này khỏi thiết bị?',
+      confirmText: 'Đăng xuất',
+      onConfirm: async () => {
+        await signOutUser();
       },
-    ]);
+    });
   };
 
   return (
@@ -160,25 +165,56 @@ export default function AccountScreen({ onBack, onSyncNow, onOpenSubscription, i
             </View>
 
             <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Gói dịch vụ:</Text>
-              <Text style={styles.metaValue}>
-                {subscriptionAccess?.plan || 'Free Trial 30 Ngày'}
+              <Text style={styles.metaLabel}>Lưu trữ trên máy:</Text>
+              <Text style={[styles.metaValue, { color: '#4ADE80' }]}>
+                ● Miễn phí trọn đời
               </Text>
             </View>
 
             <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Trạng thái gói:</Text>
-              <Text style={[styles.metaValue, { color: subscriptionAccess?.valid ? '#4ADE80' : '#F87171' }]}>
-                {subscriptionAccess?.valid ? '● Đang hoạt động' : '● Hết hạn'}
+              <Text style={styles.metaLabel}>Gói Cloud:</Text>
+              <Text style={styles.metaValue}>
+                {subscriptionAccess?.plan || 'Free · 256 MB'}
               </Text>
             </View>
 
             <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Thời hạn:</Text>
+              <Text style={styles.metaLabel}>Dung lượng Cloud:</Text>
+              <Text style={[styles.metaValue, storageUsage.is_full && { color: '#EF4444' }]}>
+                {formatBytes(storageUsage.storage_used)} / {formatBytes(storageUsage.storage_limit)}
+              </Text>
+            </View>
+
+            {/* Cloud Storage Progress Bar on Account screen */}
+            <View style={{ marginTop: 6, marginBottom: 12 }}>
+              <View style={{ height: 6, backgroundColor: '#334155', borderRadius: 3, overflow: 'hidden' }}>
+                <View
+                  style={{
+                    height: '100%',
+                    width: `${Math.min(100, Math.max(3, storageUsage.percentage || 0))}%`,
+                    backgroundColor: storageUsage.is_full
+                      ? '#EF4444'
+                      : (storageUsage.percentage > 80 ? '#F59E0B' : '#38BDF8'),
+                    borderRadius: 3,
+                  }}
+                />
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                <Text style={{ color: '#94A3B8', fontSize: 11 }}>
+                  {storageUsage.is_full
+                    ? '⚠️ Đã đầy dung lượng'
+                    : `Còn trống: ${formatBytes(storageUsage.remaining_bytes || 0)}`}
+                </Text>
+                <Text style={{ color: '#64748B', fontSize: 11, fontWeight: '600' }}>
+                  {storageUsage.percentage || 0}%
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Thời hạn gói:</Text>
               <Text style={styles.metaValue}>
-                {subscriptionAccess?.remainingDays
-                  ? `Còn ${subscriptionAccess.remainingDays} ngày`
-                  : subscriptionAccess?.expirationDate || 'N/A'}
+                {subscriptionAccess?.expirationDate || 'Vĩnh viễn'}
               </Text>
             </View>
 
@@ -189,17 +225,10 @@ export default function AccountScreen({ onBack, onSyncNow, onOpenSubscription, i
                 activeOpacity={0.8}
               >
                 <Text style={styles.manageSubButtonText}>
-                  {subscriptionAccess?.valid ? '👑 Quản lý gói thành viên' : '⚠️ Gia hạn gói thành viên'}
+                  {storageUsage.is_full ? '⚠️ Nâng cấp dung lượng Cloud (Đã đầy)' : '☁️ Nâng cấp dung lượng Cloud'}
                 </Text>
               </TouchableOpacity>
             ) : null}
-
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Dung lượng Cloud:</Text>
-              <Text style={styles.metaValue}>
-                {formatBytes(storageUsage.storage_used)} / {formatBytes(storageUsage.storage_limit)}
-              </Text>
-            </View>
 
             <View style={styles.metaRow}>
               <Text style={styles.metaLabel}>Lần đồng bộ cuối:</Text>
@@ -226,6 +255,15 @@ export default function AccountScreen({ onBack, onSyncNow, onOpenSubscription, i
                 ) : (
                   <Text style={styles.syncButtonText}>☁️ Đồng bộ dữ liệu ngay</Text>
                 )}
+              </TouchableOpacity>
+            ) : null}
+
+            {onOpenSecuritySettings ? (
+              <TouchableOpacity
+                style={styles.securitySettingsButton}
+                onPress={onOpenSecuritySettings}
+              >
+                <Text style={styles.securitySettingsButtonText}>🔒 Cài đặt bảo mật & Đổi mã PIN</Text>
               </TouchableOpacity>
             ) : null}
 
@@ -551,6 +589,20 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  securitySettingsButton: {
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  securitySettingsButtonText: {
+    color: '#93C5FD',
+    fontSize: 14,
+    fontWeight: '600',
   },
   noteTip: {
     color: '#64748B',

@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   StyleSheet,
@@ -8,8 +9,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { confirmAction } from '../../utils/helpers';
 
-export default function PhotoVaultScreen({ photos, loading, importing, onImportPhoto, onBack, onQuickEscape }) {
+export default function PhotoVaultScreen({
+  photos,
+  loading,
+  importing,
+  onImportPhoto,
+  onDeletePhoto,
+  onBack,
+  onQuickEscape,
+}) {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -36,9 +46,26 @@ export default function PhotoVaultScreen({ photos, loading, importing, onImportP
           renderItem={({ item }) => (
             <View style={styles.photoCard}>
               <Image source={{ uri: item.uri }} style={styles.photo} />
-              <Text style={styles.photoName} numberOfLines={1}>
-                {item.name}
-              </Text>
+              <View style={styles.photoBottomRow}>
+                <Text style={styles.photoName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                {onDeletePhoto ? (
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => {
+                      confirmAction({
+                        title: 'Xóa ảnh',
+                        message: `Xóa ảnh "${item.name}" khỏi kho bí mật?`,
+                        confirmText: 'Xóa',
+                        onConfirm: () => onDeletePhoto(item.id),
+                      });
+                    }}
+                  >
+                    <Text style={styles.deleteBtnText}>✕</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           )}
           ListEmptyComponent={
@@ -118,11 +145,31 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
   },
+  photoBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    marginTop: 8,
+  },
   photoName: {
     color: '#E2E8F0',
-    fontSize: 13,
-    marginTop: 8,
-    marginHorizontal: 10,
+    fontSize: 12,
+    flex: 1,
+    marginRight: 6,
+  },
+  deleteBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteBtnText: {
+    color: '#F87171',
+    fontSize: 12,
+    fontWeight: '700',
   },
   emptyState: {
     marginTop: 60,

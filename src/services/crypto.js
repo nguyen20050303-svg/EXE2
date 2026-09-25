@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { gcm } from '@noble/ciphers/aes.js';
 import b64 from 'base64-js';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { secureDeleteItem, secureGetItem, secureSetItem } from './secureStorage';
 
 // ==========================================

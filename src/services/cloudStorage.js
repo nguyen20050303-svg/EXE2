@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { generateId } from '../utils/helpers.js';
 import { SUPABASE_URL, supabase } from './supabase.js';
 import {
@@ -33,8 +33,10 @@ export const GCS_BUCKET_NAME =
 export const GCS_BACKEND_URL =
   process.env.EXPO_PUBLIC_GCS_BACKEND_URL || `${SUPABASE_URL}/functions/v1/gcs-storage`;
 
+export const FREE_STORAGE_LIMIT_BYTES = 256 * 1024 * 1024; // 268,435,456 bytes (256 MB)
+
 /**
- * 1. Check storage quota against profiles table
+ * 1. Check storage quota against profiles table (authoritative server RPC check)
  */
 export const checkStorageQuota = async (fileSizeBytes) => {
   try {
@@ -44,18 +46,26 @@ export const checkStorageQuota = async (fileSizeBytes) => {
 
     if (error) {
       console.warn('Lỗi kiểm tra quota qua RPC:', error.message);
-      return { allowed: true, storage_used: 0, storage_limit: 5368709120 };
+      const usage = await getUserStorageUsage();
+      const allowed = usage.storage_used + (Number(fileSizeBytes) || 0) <= usage.storage_limit;
+      return {
+        allowed,
+        storage_used: usage.storage_used,
+        storage_limit: usage.storage_limit,
+        remaining_bytes: usage.remaining_bytes,
+        is_full: !allowed,
+      };
     }
 
     return data;
   } catch (err) {
     console.warn('Lỗi mạng khi kiểm tra quota:', err.message);
-    return { allowed: true };
+    return { allowed: true, storage_used: 0, storage_limit: FREE_STORAGE_LIMIT_BYTES };
   }
 };
 
 /**
- * 2. Get user storage usage information (used, limit, percentage)
+ * 2. Get user storage usage information (used, limit, percentage, remaining, is_full)
  */
 export const getUserStorageUsage = async () => {
   try {
@@ -64,7 +74,14 @@ export const getUserStorageUsage = async () => {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return { storage_used: 0, storage_limit: 5368709120, percentage: 0 };
+      return {
+        storage_used: 0,
+        storage_limit: FREE_STORAGE_LIMIT_BYTES,
+        remaining_bytes: FREE_STORAGE_LIMIT_BYTES,
+        percentage: 0,
+        is_full: false,
+        is_over_quota: false,
+      };
     }
 
     const { data, error } = await supabase
@@ -74,21 +91,41 @@ export const getUserStorageUsage = async () => {
       .maybeSingle();
 
     if (error || !data) {
-      return { storage_used: 0, storage_limit: 5368709120, percentage: 0 };
+      return {
+        storage_used: 0,
+        storage_limit: FREE_STORAGE_LIMIT_BYTES,
+        remaining_bytes: FREE_STORAGE_LIMIT_BYTES,
+        percentage: 0,
+        is_full: false,
+        is_over_quota: false,
+      };
     }
 
     const used = Number(data.storage_used) || 0;
-    const limit = Number(data.storage_limit) || 5368709120;
+    const limit = Number(data.storage_limit) || FREE_STORAGE_LIMIT_BYTES;
+    const remaining = Math.max(0, limit - used);
     const percentage = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+    const is_full = used >= limit;
+    const is_over_quota = used > limit;
 
     return {
       storage_used: used,
       storage_limit: limit,
+      remaining_bytes: remaining,
       percentage,
+      is_full,
+      is_over_quota,
     };
   } catch (err) {
     console.warn('Lỗi lấy thông tin dung lượng:', err.message);
-    return { storage_used: 0, storage_limit: 5368709120, percentage: 0 };
+    return {
+      storage_used: 0,
+      storage_limit: FREE_STORAGE_LIMIT_BYTES,
+      remaining_bytes: FREE_STORAGE_LIMIT_BYTES,
+      percentage: 0,
+      is_full: false,
+      is_over_quota: false,
+    };
   }
 };
 
@@ -245,8 +282,12 @@ export const uploadFile = async ({
   if (!quota.allowed) {
     return {
       success: false,
-      error: 'Storage quota exceeded (Vượt quá dung lượng cho phép)',
+      error: 'Storage quota exceeded (Dung lượng lưu trữ đám mây đã đầy)',
       quotaExceeded: true,
+      storage_used: quota.storage_used,
+      storage_limit: quota.storage_limit,
+      remaining_bytes: quota.remaining_bytes,
+      is_full: true,
     };
   }
 

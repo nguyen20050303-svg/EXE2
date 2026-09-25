@@ -89,17 +89,29 @@ serve(async (req: Request) => {
       const now = new Date();
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
+      // Calculate authoritative quota for plan
+      let planLimitBytes = 268435456; // Free: 256 MB
+      const targetPlan = String(productId || '').toUpperCase();
+      if (targetPlan.includes('BASIC') || targetPlan.includes('500MB')) {
+        planLimitBytes = 524288000; // 500 MB
+      } else if (targetPlan.includes('STANDARD') || targetPlan.includes('1_5GB')) {
+        planLimitBytes = 1610612736; // 1.5 GB
+      } else if (targetPlan.includes('PREMIUM') || targetPlan.includes('5GB') || targetPlan.includes('PLUS')) {
+        planLimitBytes = 5368709120; // 5 GB
+      }
+
       const { data: updatedSub, error: updateErr } = await adminSupabase.rpc(
         "server_update_subscription",
         {
           p_user_id: user.id,
           p_status: "ACTIVE",
-          p_plan: productId || "MONTHLY_VAULT",
+          p_plan: productId || "STANDARD_1_5GB",
           p_provider: platform === "google_play" ? "GOOGLE_PLAY" : "APPLE",
           p_provider_subscription_id: receiptToken.substring(0, 32),
           p_current_period_start: now.toISOString(),
           p_current_period_end: periodEnd.toISOString(),
           p_cancel_at_period_end: false,
+          p_storage_limit: planLimitBytes,
         }
       );
 

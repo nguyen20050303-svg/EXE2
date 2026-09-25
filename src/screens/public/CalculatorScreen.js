@@ -12,6 +12,7 @@ export default function CalculatorScreen({
   onAttemptUnlock,
   biometricEnabled,
   onBiometricUnlock,
+  onOpenHiddenSettings,
 }) {
   const [displayValue, setDisplayValue] = useState('0');
   const [previousValue, setPreviousValue] = useState(null);
@@ -128,12 +129,17 @@ export default function CalculatorScreen({
         ) : null}
       </View>
 
-      {/* Màn hình hiển thị số */}
-      <View style={styles.displayContainer}>
+      {/* Màn hình hiển thị số - Long-press 1.5s để mở Cài đặt ẩn */}
+      <TouchableOpacity
+        style={styles.displayContainer}
+        activeOpacity={0.9}
+        onLongPress={onOpenHiddenSettings}
+        delayLongPress={1500}
+      >
         <Text style={styles.displayText} numberOfLines={1} adjustsFontSizeToFit>
           {displayValue}
         </Text>
-      </View>
+      </TouchableOpacity>
 
       {/* Bàn phím máy tính */}
       <View style={styles.keypad}>
@@ -204,7 +210,12 @@ export default function CalculatorScreen({
           <TouchableOpacity style={styles.button} onPress={handleDot}>
             <Text style={styles.numberText}>.</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.button, styles.equalsButton]} onPress={handleEquals}>
+          <TouchableOpacity
+            style={[styles.button, styles.equalsButton]}
+            onPress={handleEquals}
+            onLongPress={onOpenHiddenSettings}
+            delayLongPress={1500}
+          >
             <Text style={styles.equalsButtonText}>=</Text>
           </TouchableOpacity>
         </View>

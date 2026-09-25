@@ -21,6 +21,7 @@ export default function NoteListScreen({
   onCreateNote,
   biometricEnabled,
   onBiometricUnlock,
+  onOpenHiddenSettings,
 }) {
   const [composerVisible, setComposerVisible] = useState(false);
   const [title, setTitle] = useState('');
@@ -32,6 +33,18 @@ export default function NoteListScreen({
     if (notes.length === 1) return '1 ghi chú';
     return `${notes.length} ghi chú`;
   }, [notes.length]);
+
+  const handleSearchText = (text) => {
+    const trimmed = text.trim().toLowerCase();
+    if (trimmed === '//settings' || trimmed === '*#settings') {
+      onChangeSearchQuery('');
+      if (onOpenHiddenSettings) {
+        onOpenHiddenSettings();
+      }
+      return;
+    }
+    onChangeSearchQuery(text);
+  };
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
@@ -49,10 +62,14 @@ export default function NoteListScreen({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <View>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onLongPress={onOpenHiddenSettings}
+          delayLongPress={1500}
+        >
           <Text style={styles.title}>Notes</Text>
           <Text style={styles.subtitle}>{noteCountLabel}</Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.headerActions}>
           {biometricEnabled ? (
@@ -74,7 +91,7 @@ export default function NoteListScreen({
           placeholder="Tìm kiếm"
           placeholderTextColor="#8E8E93"
           value={searchQuery}
-          onChangeText={onChangeSearchQuery}
+          onChangeText={handleSearchText}
           autoCapitalize="none"
           autoCorrect={false}
         />

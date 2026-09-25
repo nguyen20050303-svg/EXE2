@@ -9,6 +9,8 @@ import SubscriptionScreen from './src/screens/subscription/SubscriptionScreen';
 import NoteListScreen from './src/screens/public/NoteListScreen';
 import NoteDetailScreen from './src/screens/public/NoteDetailScreen';
 import CalculatorScreen from './src/screens/public/CalculatorScreen';
+import WeatherScreen from './src/screens/public/WeatherScreen';
+import CalendarScreen from './src/screens/public/CalendarScreen';
 import VaultDashboardScreen from './src/screens/private/VaultDashboardScreen';
 import PhotoVaultScreen from './src/screens/private/PhotoVaultScreen';
 import VaultNotesScreen from './src/screens/private/VaultNotesScreen';
@@ -17,6 +19,8 @@ import VideoVaultScreen from './src/screens/private/VideoVaultScreen';
 import DocumentVaultScreen from './src/screens/private/DocumentVaultScreen';
 import VoiceVaultScreen from './src/screens/private/VoiceVaultScreen';
 import AccountScreen from './src/screens/private/AccountScreen';
+import HiddenSettingsScreen from './src/screens/settings/HiddenSettingsScreen';
+import { logAppOpen, logDisguiseChange } from './src/services/analytics';
 import {
   addDocumentItem,
   addPhotoItem,
@@ -26,6 +30,8 @@ import {
   createVaultNote,
   deleteDocumentItem,
   deletePasswordItem,
+  deletePhotoItem,
+  deleteVaultNote,
   deleteVideoItem,
   deleteVoiceItem,
   getDocumentItems,
@@ -70,10 +76,12 @@ function MainAppContent() {
     isSetupComplete,
     isUnlocked,
     lockVault,
+    setPickerActive,
     biometricAvailable,
     subscription,
     subscriptionAccess,
     subscriptionLoading,
+    signOutUser,
   } = useContext(AuthContext);
 
   const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register'
@@ -89,6 +97,16 @@ function MainAppContent() {
       setAuthScreen('login');
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    void logAppOpen();
+  }, []);
+
+  useEffect(() => {
+    if (disguiseType) {
+      void logDisguiseChange(disguiseType);
+    }
+  }, [disguiseType]);
 
   // Vault data states
   const [vaultSummary, setVaultSummary] = useState({
@@ -217,6 +235,11 @@ function MainAppContent() {
     await loadVaultData(activeVaultMode);
   };
 
+  const handleDeleteVaultNote = async (id) => {
+    await deleteVaultNote(activeVaultMode, id);
+    await loadVaultData(activeVaultMode);
+  };
+
   const handleSyncCloud = async () => {
     try {
       setIsSyncing(true);
@@ -225,7 +248,18 @@ function MainAppContent() {
         setLastSync(res.timestamp);
         await loadVaultData(activeVaultMode);
         await loadPublicNotes();
-        Alert.alert('Đồng bộ thành công', `Đã đồng bộ với Supabase Cloud lúc ${res.timestamp}`);
+        if (res.isQuotaFull) {
+          Alert.alert(
+            'Dung lượng Cloud đã đầy (Storage Full)',
+            'Các file trên máy vẫn an toàn và truy cập bình thường. Tuy nhiên một số file chưa thể sao lưu lên Cloud do đã chạm hạn mức. Bạn có muốn nâng cấp thêm dung lượng không?',
+            [
+              { text: 'Để sau', style: 'cancel' },
+              { text: 'Nâng cấp gói Cloud', onPress: () => setCurrentScreen('subscription') },
+            ]
+          );
+        } else {
+          Alert.alert('Đồng bộ thành công', `Đã đồng bộ với Supabase Cloud lúc ${res.timestamp}`);
+        }
       } else {
         Alert.alert('Đồng bộ thất bại', res.error || 'Vui lòng kiểm tra lại kết nối mạng.');
       }
@@ -240,6 +274,7 @@ function MainAppContent() {
   const handleImportPhoto = async () => {
     try {
       setImportingPhoto(true);
+      setPickerActive(true);
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permission.granted) {
@@ -248,7 +283,7 @@ function MainAppContent() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         quality: 1,
         allowsEditing: false,
       });
@@ -263,13 +298,20 @@ function MainAppContent() {
       Alert.alert('Import thất bại', 'Không thể đưa ảnh vào photo vault.');
     } finally {
       setImportingPhoto(false);
+      setPickerActive(false);
     }
+  };
+
+  const handleDeletePhoto = async (id) => {
+    await deletePhotoItem(id);
+    await loadVaultData(activeVaultMode);
   };
 
   // --- Video handlers ---
   const handleImportVideo = async () => {
     try {
       setImportingVideo(true);
+      setPickerActive(true);
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permission.granted) {
@@ -278,7 +320,7 @@ function MainAppContent() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        mediaTypes: ['videos'],
         allowsEditing: false,
       });
 
@@ -292,6 +334,7 @@ function MainAppContent() {
       Alert.alert('Import thất bại', 'Không thể đưa video vào kho.');
     } finally {
       setImportingVideo(false);
+      setPickerActive(false);
     }
   };
 
@@ -315,6 +358,7 @@ function MainAppContent() {
   const handleImportDocument = async () => {
     try {
       setImportingDocument(true);
+      setPickerActive(true);
       let DocumentPicker;
       try {
         DocumentPicker = require('expo-document-picker');
@@ -339,6 +383,7 @@ function MainAppContent() {
       Alert.alert('Import thất bại', 'Không thể đưa tài liệu vào kho.');
     } finally {
       setImportingDocument(false);
+      setPickerActive(false);
     }
   };
 
@@ -365,7 +410,7 @@ function MainAppContent() {
     await loadVaultData(activeVaultMode);
   };
 
-  if (isInitializing || (currentUser && (subscriptionLoading || !subscriptionAccess))) {
+  if (isInitializing || (currentUser && !subscriptionAccess)) {
     return <LoadingScreen />;
   }
 
@@ -379,14 +424,26 @@ function MainAppContent() {
 
   // --- Step 2: Check Setup Wizard (Preserves Stealth Disguise if Setup Completed) ---
   if (!isSetupComplete) {
-    if (subscriptionAccess && !subscriptionAccess.valid) {
-      return <SubscriptionScreen onBack={null} />;
-    }
-    return <SetupWizard biometricAvailable={biometricAvailable} onComplete={completeSetup} />;
+    return (
+      <SetupWizard
+        biometricAvailable={biometricAvailable}
+        onComplete={completeSetup}
+        onSignOut={signOutUser}
+      />
+    );
   }
 
   // --- Public Disguise Shell ---
   if (!isUnlocked) {
+    if (currentScreen === 'hidden-settings') {
+      return (
+        <>
+          <StatusBar barStyle="light-content" />
+          <HiddenSettingsScreen onBack={() => setCurrentScreen('public-list')} />
+        </>
+      );
+    }
+
     if (currentScreen === 'public-detail') {
       return (
         <>
@@ -402,6 +459,29 @@ function MainAppContent() {
           onAttemptUnlock={attemptUnlock}
           biometricEnabled={biometricEnabled}
           onBiometricUnlock={handleBiometricUnlock}
+          onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
+        />
+      );
+    }
+
+    if (disguiseType === 'weather') {
+      return (
+        <WeatherScreen
+          onAttemptUnlock={attemptUnlock}
+          biometricEnabled={biometricEnabled}
+          onBiometricUnlock={handleBiometricUnlock}
+          onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
+        />
+      );
+    }
+
+    if (disguiseType === 'calendar') {
+      return (
+        <CalendarScreen
+          onAttemptUnlock={attemptUnlock}
+          biometricEnabled={biometricEnabled}
+          onBiometricUnlock={handleBiometricUnlock}
+          onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
         />
       );
     }
@@ -418,15 +498,13 @@ function MainAppContent() {
           onCreateNote={handleCreatePublicNote}
           biometricEnabled={biometricEnabled}
           onBiometricUnlock={handleBiometricUnlock}
+          onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
         />
       </>
     );
   }
 
-  // --- Subscription Gate: Block Private Vault if Subscription Expired ---
-  if (activeVaultMode === 'real' && subscriptionAccess && !subscriptionAccess.valid) {
-    return <SubscriptionScreen onBack={handleQuickEscape} />;
-  }
+  // --- Freemium Model: Local Vault Storage is FREE forever, no paywall blocks entry! ---
 
   if (currentScreen === 'subscription') {
     return <SubscriptionScreen onBack={() => setCurrentScreen('account')} />;
@@ -441,6 +519,7 @@ function MainAppContent() {
           mode={activeVaultMode}
           notes={vaultNotes}
           onCreateNote={handleCreateVaultNote}
+          onDeleteNote={handleDeleteVaultNote}
           onBack={() => setCurrentScreen('vault-home')}
           onQuickEscape={handleQuickEscape}
         />
@@ -457,6 +536,7 @@ function MainAppContent() {
           loading={loadingVault}
           importing={importingPhoto}
           onImportPhoto={handleImportPhoto}
+          onDeletePhoto={handleDeletePhoto}
           onBack={() => setCurrentScreen('vault-home')}
           onQuickEscape={handleQuickEscape}
         />
@@ -529,6 +609,15 @@ function MainAppContent() {
     );
   }
 
+  if (currentScreen === 'hidden-settings') {
+    return (
+      <>
+        <StatusBar barStyle="light-content" />
+        <HiddenSettingsScreen onBack={() => setCurrentScreen('account')} />
+      </>
+    );
+  }
+
   if (currentScreen === 'account') {
     return (
       <>
@@ -537,6 +626,7 @@ function MainAppContent() {
           onBack={() => setCurrentScreen('vault-home')}
           onSyncNow={handleSyncCloud}
           onOpenSubscription={() => setCurrentScreen('subscription')}
+          onOpenSecuritySettings={() => setCurrentScreen('hidden-settings')}
           isSyncing={isSyncing}
           lastSync={lastSync}
         />
