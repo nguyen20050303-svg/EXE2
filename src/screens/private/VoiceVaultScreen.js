@@ -13,6 +13,7 @@ import { confirmAction } from '../../utils/helpers';
 import {
   useAudioRecorder,
   createAudioPlayer,
+  getRecordingPermissionsAsync,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
   RecordingPresets,
@@ -37,15 +38,26 @@ export default function VoiceVaultScreen({
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       if (soundRef.current) {
         try {
           soundRef.current.pause();
           soundRef.current.remove();
         } catch {}
+        soundRef.current = null;
+      }
+      if (recorder) {
+        try {
+          if (recorder.isRecording) {
+            recorder.stop();
+          }
+        } catch {}
       }
     };
-  }, []);
+  }, [recorder]);
 
   const startRecording = async () => {
     if (!recorder) {
@@ -54,34 +66,69 @@ export default function VoiceVaultScreen({
     }
 
     try {
-      const permission = await requestRecordingPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Cần cấp quyền', 'Ứng dụng cần quyền Micro để ghi âm.');
+      // 1. Dừng phát âm thanh nếu đang phát bản ghi cũ
+      if (soundRef.current) {
+        try {
+          soundRef.current.pause();
+          soundRef.current.remove();
+        } catch (e) {
+          console.warn('Dừng player cũ trước khi ghi:', e);
+        }
+        soundRef.current = null;
+        setPlayingId(null);
+      }
+
+      // 2. Kiểm tra và yêu cầu quyền Micro
+      let permission = null;
+      try {
+        permission = await getRecordingPermissionsAsync();
+        if (!permission || !permission.granted) {
+          permission = await requestRecordingPermissionsAsync();
+        }
+      } catch (permErr) {
+        console.warn('Lỗi kiểm tra quyền recording:', permErr);
+      }
+
+      if (!permission || !permission.granted) {
+        Alert.alert(
+          'Cần cấp quyền Micro',
+          'Ứng dụng cần quyền Micro để thu âm. Vui lòng vào Cài đặt máy > Ứng dụng > Hidder > Cấp quyền Micro.'
+        );
         return;
       }
 
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-      });
+      // 3. Cấu hình chế độ âm thanh
+      try {
+        await setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+        });
+      } catch (modeErr) {
+        console.warn('Lỗi cấu hình AudioMode:', modeErr);
+      }
 
+      // 4. Chuẩn bị và bắt đầu ghi âm
       await recorder.prepareToRecordAsync();
       recorder.record();
 
       setIsRecording(true);
       setRecordingSeconds(0);
 
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
     } catch (err) {
       console.error('Lỗi khi bắt đầu ghi âm:', err);
-      Alert.alert('Lỗi', 'Không thể bắt đầu ghi âm.');
+      Alert.alert('Lỗi ghi âm', 'Không thể bắt đầu ghi âm: ' + (err?.message || 'Vui lòng kiểm tra quyền micro.'));
     }
   };
 
   const stopRecording = async () => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     if (!recorder) return;
 
     try {
@@ -89,13 +136,25 @@ export default function VoiceVaultScreen({
       await recorder.stop();
       const uri = recorder.uri;
 
+      // Đặt lại AudioMode về chế độ phát loa bình thường
+      try {
+        await setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+        });
+      } catch (modeErr) {
+        console.warn('Lỗi đặt lại AudioMode:', modeErr);
+      }
+
       if (uri) {
-        await onSaveVoice(uri, customName);
+        await onSaveVoice(uri, customName.trim());
         setCustomName('');
+      } else {
+        Alert.alert('Thông báo', 'Không tạo được tệp âm thanh.');
       }
     } catch (err) {
       console.error('Lỗi khi dừng ghi âm:', err);
-      Alert.alert('Lỗi', 'Không thể lưu bản ghi âm.');
+      Alert.alert('Lỗi', 'Không thể lưu bản ghi âm: ' + (err?.message || 'Lỗi không xác định'));
     }
   };
 
