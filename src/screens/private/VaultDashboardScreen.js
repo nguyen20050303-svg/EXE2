@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { getPendingQueueCount, subscribeToSyncChanges } from '../../services/syncManager';
+import DisguiseGuideModal from '../../components/DisguiseGuideModal';
 
 export default function VaultDashboardScreen({
   mode,
@@ -29,6 +30,7 @@ export default function VaultDashboardScreen({
 }) {
   const isDecoy = mode === 'decoy';
   const [pendingCount, setPendingCount] = useState(0);
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -113,7 +115,16 @@ export default function VaultDashboardScreen({
       {/* Disguise Shell Switcher (Private Vault only) */}
       {!isDecoy && onChangeDisguise ? (
         <View style={styles.disguiseCard}>
-          <Text style={styles.disguiseHeaderTitle}>🎭 Lớp vỏ ngụy trang bên ngoài</Text>
+          <View style={styles.disguiseHeaderRow}>
+            <Text style={styles.disguiseHeaderTitle}>🎭 Lớp vỏ ngụy trang bên ngoài</Text>
+            <TouchableOpacity
+              style={styles.guideBadgeBtn}
+              onPress={() => setShowGuideModal(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.guideBadgeText}>💡 Cách mở khóa</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.disguiseButtons}>
             <TouchableOpacity
               style={[styles.disguiseBtn, disguiseType === 'notes' && styles.disguiseBtnActive]}
@@ -228,6 +239,10 @@ export default function VaultDashboardScreen({
       </View>
 
       <View style={{ height: 40 }} />
+      <DisguiseGuideModal
+        visible={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
     </ScrollView>
   );
 }
@@ -384,11 +399,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.16)',
   },
+  disguiseHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   disguiseHeaderTitle: {
     color: '#CBD5E1',
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 10,
+  },
+  guideBadgeBtn: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  guideBadgeText: {
+    color: '#38BDF8',
+    fontSize: 11.5,
+    fontWeight: '700',
   },
   disguiseButtons: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import assert from 'node:assert';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { gcm } from '@noble/ciphers/aes.js';
 
 console.log('\n=============================================================');
@@ -1050,6 +1051,60 @@ await it('34. Cross-Shell: Auto-lock vẫn hoạt động', async () => {
   sharedAuth.lockVault();
   assert.strictEqual(sharedAuth.vaultUnlocked, false);
   assert.strictEqual(sharedAuth.activeVaultMode, null);
+});
+
+console.log('\n--- 11. Disguise Guide & Stealth Camouflage UX Verification ---');
+
+await it('35. Camouflage Stealth: Public shells KHÔNG chứa nút hoặc text lộ liễu về Vault', async () => {
+  const noteListCode = fs.readFileSync('src/screens/public/NoteListScreen.js', 'utf8');
+  const calcCode = fs.readFileSync('src/screens/public/CalculatorScreen.js', 'utf8');
+  const weatherCode = fs.readFileSync('src/screens/public/WeatherScreen.js', 'utf8');
+  const calendarCode = fs.readFileSync('src/screens/public/CalendarScreen.js', 'utf8');
+
+  // Đảm bảo không có text hay button hướng dẫn mở vault trên 4 màn hình công khai
+  assert(!noteListCode.includes('DisguiseGuideModal'), 'NoteListScreen không được chứa DisguiseGuideModal');
+  assert(!calcCode.includes('DisguiseGuideModal'), 'CalculatorScreen không được chứa DisguiseGuideModal');
+  assert(!weatherCode.includes('DisguiseGuideModal'), 'WeatherScreen không được chứa DisguiseGuideModal');
+  assert(!calendarCode.includes('DisguiseGuideModal'), 'CalendarScreen không được chứa DisguiseGuideModal');
+});
+
+await it('36. Guide Integration: SetupWizard chứa mô tả cử chỉ mới và nút mở DisguiseGuideModal', async () => {
+  const wizardCode = fs.readFileSync('src/components/SetupWizard.js', 'utf8');
+  assert(wizardCode.includes('DisguiseGuideModal'), 'SetupWizard phải import DisguiseGuideModal');
+  assert(wizardCode.includes('Nhấn giữ phím "="'), 'SetupWizard phải mô tả cử chỉ nhấn giữ Calculator');
+  assert(wizardCode.includes('Nhấn giữ tiêu đề "Notes"'), 'SetupWizard phải mô tả cử chỉ nhấn giữ Notes');
+  assert(!wizardCode.includes('mở kho qua ô tìm kiếm'), 'SetupWizard không được còn text mở kho qua ô tìm kiếm');
+});
+
+await it('37. Guide Integration: VaultDashboardScreen chứa nút mở DisguiseGuideModal', async () => {
+  const dashboardCode = fs.readFileSync('src/screens/private/VaultDashboardScreen.js', 'utf8');
+  assert(dashboardCode.includes('DisguiseGuideModal'), 'VaultDashboardScreen phải import DisguiseGuideModal');
+  assert(dashboardCode.includes('Cách mở khóa'), 'VaultDashboardScreen phải có nút Cách mở khóa');
+});
+
+await it('38. Guide Integration: AccountScreen chứa nút mở DisguiseGuideModal', async () => {
+  const accountCode = fs.readFileSync('src/screens/private/AccountScreen.js', 'utf8');
+  assert(accountCode.includes('DisguiseGuideModal'), 'AccountScreen phải import DisguiseGuideModal');
+  assert(accountCode.includes('Hướng dẫn mở khóa ngụy trang'), 'AccountScreen phải có nút Hướng dẫn');
+});
+
+await it('39. Guide Integration: HiddenSettingsScreen chứa mô tả cử chỉ chuẩn và nút mở DisguiseGuideModal', async () => {
+  const settingsCode = fs.readFileSync('src/screens/settings/HiddenSettingsScreen.js', 'utf8');
+  assert(settingsCode.includes('DisguiseGuideModal'), 'HiddenSettingsScreen phải import DisguiseGuideModal');
+  assert(settingsCode.includes('Nhấn giữ phím "=" trong 1.2s'), 'Settings phải mô tả chính xác cử chỉ Máy tính');
+  assert(settingsCode.includes('Nhấn giữ tiêu đề "Notes" trong 1.5s'), 'Settings phải mô tả chính xác cử chỉ Notes');
+  assert(settingsCode.includes('Nhấn giữ thẻ nhiệt độ trung tâm trong 1.5s'), 'Settings phải mô tả chính xác cử chỉ Thời tiết');
+  assert(settingsCode.includes('Nhấn giữ tiêu đề Tháng/Năm trong 1.5s'), 'Settings phải mô tả chính xác cử chỉ Lịch');
+});
+
+await it('40. Guide Completeness: DisguiseGuideModal bao gồm đủ 4 vỏ bọc và phân nhánh Real/Decoy', async () => {
+  const guideCode = fs.readFileSync('src/components/DisguiseGuideModal.js', 'utf8');
+  assert(guideCode.includes('calculator'), 'Guide phải có hướng dẫn Máy tính');
+  assert(guideCode.includes('notes'), 'Guide phải có hướng dẫn Ghi chú');
+  assert(guideCode.includes('weather'), 'Guide phải có hướng dẫn Thời tiết');
+  assert(guideCode.includes('calendar'), 'Guide phải có hướng dẫn Lịch');
+  assert(guideCode.includes('Real PIN'), 'Guide phải giải thích Real PIN');
+  assert(guideCode.includes('Decoy PIN'), 'Guide phải giải thích Decoy PIN');
 });
 
 console.log('\n=============================================================');

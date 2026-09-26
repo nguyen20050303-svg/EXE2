@@ -1,27 +1,28 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { isValidSecretCode, maskSecretCode } from '../services/crypto';
+import DisguiseGuideModal from './DisguiseGuideModal';
 
 const DISGUISE_OPTIONS = [
   {
     key: 'notes',
     label: 'Ghi chú (Notes)',
-    description: 'Ngụy trang thành ứng dụng ghi chú, mở kho qua ô tìm kiếm.',
+    description: 'Ngụy trang app ghi chú Apple. Nhấn giữ tiêu đề "Notes" 1.5s để mở két.',
   },
   {
     key: 'calculator',
     label: 'Máy tính (Calculator)',
-    description: 'Ngụy trang thành máy tính số học thật, gõ mã và bấm dấu = để mở kho.',
+    description: 'Ngụy trang máy tính số học thật. Nhấn giữ phím "=" 1.2s để mở két.',
   },
   {
     key: 'weather',
     label: 'Thời tiết (Weather)',
-    description: 'Ngụy trang thành dự báo thời tiết, mở kho qua ô tìm kiếm thành phố.',
+    description: 'Ngụy trang app dự báo thời tiết. Nhấn giữ thẻ nhiệt độ 1.5s để mở két.',
   },
   {
     key: 'calendar',
     label: 'Lịch & Sự kiện (Calendar)',
-    description: 'Ngụy trang thành ứng dụng lịch biểu, mở kho qua ô tìm kiếm sự kiện.',
+    description: 'Ngụy trang app lịch biểu. Nhấn giữ tiêu đề Tháng/Năm 1.5s để mở két.',
   },
 ];
 
@@ -33,6 +34,7 @@ export default function SetupWizard({ biometricAvailable, onComplete, onSignOut 
   const [enableBiometric, setEnableBiometric] = useState(Boolean(biometricAvailable));
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   const stepTitle = useMemo(() => {
     if (step === 0) return 'Chọn lớp vỏ ngụy trang';
@@ -130,12 +132,12 @@ export default function SetupWizard({ biometricAvailable, onComplete, onSignOut 
             />
             <Text style={styles.helperText}>
               {disguise === 'calculator'
-                ? 'Mã này sẽ mở vault thật khi nhập mã số rồi ấn dấu = trên Máy tính.'
+                ? 'Nhấn giữ phím "=" trên Máy tính (1.2s) để mở hộp thoại mã PIN.'
                 : disguise === 'weather'
-                ? 'Mã này sẽ mở vault thật khi nhập vào thanh tìm thành phố của Thời tiết.'
+                ? 'Nhấn giữ thẻ nhiệt độ trung tâm của Thời tiết (1.5s) để mở hộp thoại mã PIN.'
                 : disguise === 'calendar'
-                ? 'Mã này sẽ mở vault thật khi nhập vào ô tìm sự kiện của Lịch.'
-                : 'Mã này sẽ mở vault thật khi nhập trong ô tìm kiếm của Notes.'}
+                ? 'Nhấn giữ tiêu đề Tháng/Năm của Lịch (1.5s) để mở hộp thoại mã PIN.'
+                : 'Nhấn giữ tiêu đề "Notes" trên cùng (1.5s) để mở hộp thoại mã PIN.'}
             </Text>
           </>
         ) : null}
@@ -188,6 +190,28 @@ export default function SetupWizard({ biometricAvailable, onComplete, onSignOut 
                 onValueChange={setEnableBiometric}
               />
             </View>
+
+            {/* Quick Unlock Tip */}
+            <View style={styles.guideCardTip}>
+              <Text style={styles.guideCardTipTitle}>💡 Cách mở: {DISGUISE_OPTIONS.find((o) => o.key === disguise)?.label}</Text>
+              <Text style={styles.guideCardTipDesc}>
+                {disguise === 'calculator'
+                  ? '👉 Nhấn & Giữ phím "=" trong 1.2s -> Xác thực để vào két.'
+                  : disguise === 'weather'
+                  ? '👉 Nhấn & Giữ thẻ nhiệt độ ở giữa 1.5s -> Xác thực để vào két.'
+                  : disguise === 'calendar'
+                  ? '👉 Nhấn & Giữ tiêu đề Tháng/Năm 1.5s -> Xác thực để vào két.'
+                  : '👉 Nhấn & Giữ tiêu đề "Notes" trên cùng 1.5s -> Xác thực để vào két.'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.openGuideButton}
+              onPress={() => setShowGuideModal(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.openGuideButtonText}>📖 Xem toàn bộ bảng hướng dẫn 4 lớp vỏ</Text>
+            </TouchableOpacity>
           </>
         ) : null}
 
@@ -209,6 +233,11 @@ export default function SetupWizard({ biometricAvailable, onComplete, onSignOut 
           </TouchableOpacity>
         </View>
       </View>
+
+      <DisguiseGuideModal
+        visible={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
     </View>
   );
 }
@@ -368,6 +397,40 @@ const styles = StyleSheet.create({
   switchDescription: {
     color: '#94A3B8',
     lineHeight: 20,
+  },
+  guideCardTip: {
+    backgroundColor: '#1E293B',
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#38BDF8',
+  },
+  guideCardTipTitle: {
+    color: '#F8FAFC',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  guideCardTipDesc: {
+    color: '#93C5FD',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  openGuideButton: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  openGuideButtonText: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '700',
   },
   errorText: {
     color: '#FCA5A5',

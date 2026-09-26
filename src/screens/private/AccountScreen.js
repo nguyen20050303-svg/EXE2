@@ -15,6 +15,7 @@ import { AuthContext } from '../../context/AuthContext';
 import { getUserStorageUsage } from '../../services/cloudStorage';
 import { getPendingQueueCount, subscribeToSyncChanges } from '../../services/syncManager';
 import { formatBytes, confirmAction } from '../../utils/helpers';
+import DisguiseGuideModal from '../../components/DisguiseGuideModal';
 
 export default function AccountScreen({
   onBack,
@@ -35,6 +36,7 @@ export default function AccountScreen({
   const [storageUsage, setStorageUsage] = useState({ storage_used: 0, storage_limit: 5368709120 });
   const [pendingCount, setPendingCount] = useState(0);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -275,6 +277,13 @@ export default function AccountScreen({
               </TouchableOpacity>
             ) : null}
 
+            <TouchableOpacity
+              style={styles.guideButton}
+              onPress={() => setShowGuideModal(true)}
+            >
+              <Text style={styles.guideButtonText}>📖 Hướng dẫn mở khóa ngụy trang</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.policyButton} onPress={handleShowPrivacyPolicy}>
               <Text style={styles.policyButtonText}>📜 Chính sách quyền riêng tư & Bảo mật</Text>
             </TouchableOpacity>
@@ -386,6 +395,11 @@ export default function AccountScreen({
           </View>
         )}
       </ScrollView>
+
+      <DisguiseGuideModal
+        visible={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -617,6 +631,20 @@ const styles = StyleSheet.create({
     color: '#93C5FD',
     fontSize: 14,
     fontWeight: '600',
+  },
+  guideButton: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  guideButtonText: {
+    color: '#38BDF8',
+    fontSize: 14,
+    fontWeight: '700',
   },
   noteTip: {
     color: '#64748B',

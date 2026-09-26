@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { confirmAction } from '../../utils/helpers';
+import DisguiseGuideModal from '../../components/DisguiseGuideModal';
 
 export default function HiddenSettingsScreen({ onBack }) {
   const {
@@ -36,6 +37,7 @@ export default function HiddenSettingsScreen({ onBack }) {
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   // PIN settings state
   const [newRealPin, setNewRealPin] = useState('');
@@ -393,7 +395,7 @@ export default function HiddenSettingsScreen({ onBack }) {
                   <Text style={styles.disguiseCardIcon}>🧮</Text>
                   <Text style={styles.disguiseCardTitle}>Máy tính bỏ túi</Text>
                   <Text style={styles.disguiseCardSub}>
-                    Giao diện tính toán thật. Nhấn giữ màn hình hoặc phím = 2s để vào Cài đặt ẩn.
+                    Giao diện tính toán thật. Nhấn giữ phím "=" trong 1.2s để mở xác thực két.
                   </Text>
                   {disguiseType === 'calculator' ? (
                     <View style={styles.activeTag}>
@@ -412,7 +414,7 @@ export default function HiddenSettingsScreen({ onBack }) {
                   <Text style={styles.disguiseCardIcon}>📝</Text>
                   <Text style={styles.disguiseCardTitle}>Ghi chú thông thường</Text>
                   <Text style={styles.disguiseCardSub}>
-                    Giao diện Notes Apple. Nhấn giữ tiêu đề hoặc gõ //settings để vào Cài đặt ẩn.
+                    Giao diện Notes Apple. Nhấn giữ tiêu đề "Notes" trong 1.5s để mở xác thực két.
                   </Text>
                   {disguiseType === 'notes' ? (
                     <View style={styles.activeTag}>
@@ -431,7 +433,7 @@ export default function HiddenSettingsScreen({ onBack }) {
                   <Text style={styles.disguiseCardIcon}>⛅</Text>
                   <Text style={styles.disguiseCardTitle}>Dự báo thời tiết (Weather)</Text>
                   <Text style={styles.disguiseCardSub}>
-                    Giao diện thời tiết thật. Nhấn giữ nhiệt độ hoặc gõ mã vào ô tìm thành phố để mở kho.
+                    Giao diện thời tiết thật. Nhấn giữ thẻ nhiệt độ trung tâm trong 1.5s để mở xác thực két.
                   </Text>
                   {disguiseType === 'weather' ? (
                     <View style={styles.activeTag}>
@@ -450,7 +452,7 @@ export default function HiddenSettingsScreen({ onBack }) {
                   <Text style={styles.disguiseCardIcon}>📅</Text>
                   <Text style={styles.disguiseCardTitle}>Lịch & Sự kiện (Calendar)</Text>
                   <Text style={styles.disguiseCardSub}>
-                    Giao diện lịch biểu cá nhân. Nhấn giữ tháng hoặc gõ mã vào ô tìm sự kiện để mở kho.
+                    Giao diện lịch biểu cá nhân. Nhấn giữ tiêu đề Tháng/Năm trong 1.5s để mở xác thực két.
                   </Text>
                   {disguiseType === 'calendar' ? (
                     <View style={styles.activeTag}>
@@ -459,6 +461,14 @@ export default function HiddenSettingsScreen({ onBack }) {
                   ) : null}
                 </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                style={styles.guideButton}
+                onPress={() => setShowGuideModal(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.guideButtonText}>📖 Bảng hướng dẫn mở khóa chi tiết</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Section 4: Biometrics Setting */}
@@ -506,6 +516,11 @@ export default function HiddenSettingsScreen({ onBack }) {
           </View>
         )}
       </ScrollView>
+
+      <DisguiseGuideModal
+        visible={showGuideModal}
+        onClose={() => setShowGuideModal(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -798,6 +813,20 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 14,
     fontWeight: '600',
+  },
+  guideButton: {
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  guideButtonText: {
+    color: '#38BDF8',
+    fontSize: 13.5,
+    fontWeight: '700',
   },
   completeButton: {
     backgroundColor: '#10B981',
