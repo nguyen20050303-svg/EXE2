@@ -91,23 +91,35 @@ export default function CalculatorScreen({
   };
 
   const handleEquals = async () => {
-    // 1. Kiểm tra mã bí mật trong buffer trước
-    if (onAttemptUnlock) {
-      // Thử cả rawInputBuffer và displayValue
-      const modeFromBuffer = await onAttemptUnlock(rawInputBuffer);
-      if (modeFromBuffer !== 'none') {
-        handleClear();
-        return;
-      }
+    // 1. Nếu đang thực hiện phép tính (+, -, ×, ÷), LUÔN tính toán số học thật để bảo vệ bí mật
+    if (operation !== null && previousValue !== null) {
+      const result = calculateResult();
+      setDisplayValue(String(result));
+      setPreviousValue(null);
+      setOperation(null);
+      setWaitingForNewValue(true);
+      setRawInputBuffer('');
+      return;
+    }
 
+    // 2. Nếu người dùng nhập dãy số trực tiếp rồi bấm '=' -> kiểm tra mã bí mật
+    if (onAttemptUnlock) {
       const modeFromDisplay = await onAttemptUnlock(displayValue);
       if (modeFromDisplay !== 'none') {
         handleClear();
         return;
       }
+
+      if (rawInputBuffer) {
+        const modeFromBuffer = await onAttemptUnlock(rawInputBuffer);
+        if (modeFromBuffer !== 'none') {
+          handleClear();
+          return;
+        }
+      }
     }
 
-    // 2. Nếu không phải mã bí mật -> Thực hiện tính toán số học thật
+    // 3. Nếu không phải mã bí mật -> hiển thị số bình thường
     const result = calculateResult();
     setDisplayValue(String(result));
     setPreviousValue(null);
@@ -116,25 +128,45 @@ export default function CalculatorScreen({
     setRawInputBuffer('');
   };
 
+  // Cử chỉ khẩn cấp: Nhấn giữ phím '=' 1.2 giây -> Luôn ép kiểm tra mở két
+  const handleLongPressEquals = async () => {
+    if (onAttemptUnlock) {
+      const mode = await onAttemptUnlock(displayValue);
+      if (mode !== 'none') {
+        handleClear();
+        return;
+      }
+      if (rawInputBuffer) {
+        const modeBuf = await onAttemptUnlock(rawInputBuffer);
+        if (modeBuf !== 'none') {
+          handleClear();
+          return;
+        }
+      }
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Secret Biometric Trigger ở góc trên */}
+      {/* Secret Biometric Trigger: Vùng chạm tàng hình ở góc trên (không để lại icon lạ) */}
       <View style={styles.topBar}>
         {biometricEnabled ? (
-          <TouchableOpacity style={styles.bioButton} onPress={onBiometricUnlock}>
-            <Text style={styles.bioText}>◎</Text>
-          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.invisibleBioArea}
+            onPress={onBiometricUnlock}
+            activeOpacity={1}
+          />
         ) : null}
       </View>
 
-      {/* Màn hình hiển thị số - Long-press 1.5s để mở Cài đặt ẩn */}
+      {/* Màn hình hiển thị số - Long-press 2s để mở Cài đặt ẩn */}
       <TouchableOpacity
         style={styles.displayContainer}
         activeOpacity={0.9}
         onLongPress={onOpenHiddenSettings}
-        delayLongPress={1500}
+        delayLongPress={2000}
       >
         <Text style={styles.displayText} numberOfLines={1} adjustsFontSizeToFit>
           {displayValue}
@@ -213,8 +245,8 @@ export default function CalculatorScreen({
           <TouchableOpacity
             style={[styles.button, styles.equalsButton]}
             onPress={handleEquals}
-            onLongPress={onOpenHiddenSettings}
-            delayLongPress={1500}
+            onLongPress={handleLongPressEquals}
+            delayLongPress={1200}
           >
             <Text style={styles.equalsButtonText}>=</Text>
           </TouchableOpacity>
@@ -235,13 +267,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: 24,
     paddingTop: 12,
+    minHeight: 44,
   },
-  bioButton: {
-    padding: 8,
-  },
-  bioText: {
-    color: '#333333',
-    fontSize: 20,
+  invisibleBioArea: {
+    width: 60,
+    height: 44,
   },
   displayContainer: {
     paddingHorizontal: 24,

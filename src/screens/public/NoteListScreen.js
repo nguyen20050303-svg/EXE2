@@ -64,20 +64,15 @@ export default function NoteListScreen({
       <View style={styles.headerRow}>
         <TouchableOpacity
           activeOpacity={0.8}
+          onPress={biometricEnabled ? onBiometricUnlock : undefined}
           onLongPress={onOpenHiddenSettings}
-          delayLongPress={1500}
+          delayLongPress={2000}
         >
           <Text style={styles.title}>Notes</Text>
           <Text style={styles.subtitle}>{noteCountLabel}</Text>
         </TouchableOpacity>
 
         <View style={styles.headerActions}>
-          {biometricEnabled ? (
-            <TouchableOpacity style={styles.iconButton} onPress={onBiometricUnlock}>
-              <Text style={styles.iconButtonText}>◎</Text>
-            </TouchableOpacity>
-          ) : null}
-
           <TouchableOpacity style={styles.addButton} onPress={() => setComposerVisible(true)}>
             <Text style={styles.addButtonText}>＋</Text>
           </TouchableOpacity>
@@ -94,6 +89,7 @@ export default function NoteListScreen({
           onChangeText={handleSearchText}
           autoCapitalize="none"
           autoCorrect={false}
+          secureTextEntry={/^\d{4,}$/.test(searchQuery)}
         />
       </View>
 

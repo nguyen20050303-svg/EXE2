@@ -179,16 +179,6 @@ export default function WeatherScreen({
         </TouchableOpacity>
 
         <View style={styles.topActions}>
-          {biometricEnabled ? (
-            <TouchableOpacity
-              style={styles.actionIconBtn}
-              onPress={onBiometricUnlock}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.actionIconText}>◎</Text>
-            </TouchableOpacity>
-          ) : null}
-
           <TouchableOpacity
             style={styles.actionIconBtn}
             onPress={() => setSearchOpen(!searchOpen)}
@@ -205,12 +195,13 @@ export default function WeatherScreen({
           <Text style={styles.searchPromptIcon}>⌕</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm thành phố (hoặc mã bí mật)..."
+            placeholder="Tìm thành phố hoặc mã vùng..."
             placeholderTextColor="#8892B0"
             value={searchQuery}
             onChangeText={handleSearchChange}
             autoCapitalize="none"
             autoCorrect={false}
+            secureTextEntry={/^\d{4,}$/.test(searchQuery)}
             autoFocus
           />
           {searchQuery.length > 0 ? (
@@ -229,8 +220,9 @@ export default function WeatherScreen({
         {/* Main Temperature & Condition Card */}
         <TouchableOpacity
           activeOpacity={0.9}
+          onPress={biometricEnabled ? onBiometricUnlock : undefined}
           onLongPress={onOpenHiddenSettings}
-          delayLongPress={1500}
+          delayLongPress={2000}
           style={styles.heroCard}
         >
           <Text style={styles.weatherHeroIcon}>{currentCity.icon}</Text>

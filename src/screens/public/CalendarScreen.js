@@ -226,8 +226,9 @@ export default function CalendarScreen({
       <View style={styles.header}>
         <TouchableOpacity
           activeOpacity={0.8}
+          onPress={biometricEnabled ? onBiometricUnlock : undefined}
           onLongPress={onOpenHiddenSettings}
-          delayLongPress={1500}
+          delayLongPress={2000}
         >
           <Text style={styles.headerTitle}>{monthLabel}</Text>
           <Text style={styles.headerSubtitle}>Lịch biểu cá nhân & Sự kiện</Text>
@@ -237,16 +238,6 @@ export default function CalendarScreen({
           <TouchableOpacity style={styles.todayBtn} onPress={handleToday}>
             <Text style={styles.todayBtnText}>Hôm nay</Text>
           </TouchableOpacity>
-
-          {biometricEnabled ? (
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={onBiometricUnlock}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.iconBtnText}>◎</Text>
-            </TouchableOpacity>
-          ) : null}
 
           <TouchableOpacity
             style={styles.iconBtn}
@@ -272,12 +263,13 @@ export default function CalendarScreen({
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm sự kiện (hoặc nhập mã bí mật)..."
+            placeholder="Tìm kiếm sự kiện hoặc ghi chú..."
             placeholderTextColor="#9CA3AF"
             value={searchQuery}
             onChangeText={handleSearchChange}
             autoCapitalize="none"
             autoCorrect={false}
+            secureTextEntry={/^\d{4,}$/.test(searchQuery)}
             autoFocus
           />
           {searchQuery.length > 0 ? (
