@@ -114,6 +114,14 @@ export default function AccountScreen({
     });
   };
 
+  const handleShowPrivacyPolicy = () => {
+    Alert.alert(
+      'Chính Sách Quyền Riêng Tư & An Toàn Dữ Liệu',
+      '• Mã hóa Client-Side: Toàn bộ dữ liệu (ảnh, video, ghi chú, ghi âm, mật khẩu, tài liệu) được mã hóa AES-256-GCM trực tiếp trên máy trước khi đồng bộ.\n\n• Quyền truy cập: Chỉ xin quyền Micro khi ghi âm giọng nói, Máy ảnh khi chụp ảnh/quay video, Sinh trắc học khi mở khóa két.\n\n• Không chia sẻ dữ liệu: Ứng dụng tuân thủ tiêu chuẩn Zero-Knowledge, cam kết không bán hay tiết lộ dữ liệu cá nhân cho bên thứ ba.\n\n• Xóa tài khoản: Bạn có thể xóa từng tệp hoặc yêu cầu xóa toàn bộ dữ liệu & tài khoản bất cứ lúc nào qua email: support@hidder.app.',
+      [{ text: 'Đã hiểu', style: 'default' }]
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -267,9 +275,15 @@ export default function AccountScreen({
               </TouchableOpacity>
             ) : null}
 
+            <TouchableOpacity style={styles.policyButton} onPress={handleShowPrivacyPolicy}>
+              <Text style={styles.policyButtonText}>📜 Chính sách quyền riêng tư & Bảo mật</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
               <Text style={styles.signOutButtonText}>Đăng xuất tài khoản</Text>
             </TouchableOpacity>
+
+            <Text style={styles.appVersionText}>Hidder v1.0.0 (Build 1)</Text>
           </View>
         ) : (
           /* Authentication Form */
@@ -609,5 +623,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
+  },
+  policyButton: {
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderRadius: 12,
+    paddingVertical: 11,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  policyButtonText: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  appVersionText: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 14,
   },
 });

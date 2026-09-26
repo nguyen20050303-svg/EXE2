@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chính Sách Quyền Riêng Tư - Hidder</title>
+  <style>
+    :root {
+      --bg: #090D16;
+      --card-bg: #111827;
+      --border: #1F2937;
+      --primary: #38BDF8;
+      --text: #F3F4F6;
+      --text-muted: #9CA3AF;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h1 {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .updated-date {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+    }
+    h2 {
+      font-size: 20px;
+      color: #F8FAFC;
+      margin-top: 26px;
+      margin-bottom: 12px;
+    }
+    p, li {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 12px;
+    }
+    ul {
+      padding-left: 20px;
+      margin-bottom: 16px;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    strong {
+      color: var(--text);
+    }
+    .highlight-box {
+      background: rgba(56, 189, 248, 0.08);
+      border-left: 4px solid var(--primary);
+      padding: 16px;
+      border-radius: 6px;
+      margin: 18px 0;
+    }
+    .highlight-box p {
+      margin-bottom: 0;
+      color: #E0F2FE;
+    }
+    footer {
+      margin-top: 36px;
+      text-align: center;
+      color: #64748B;
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛡️ Chính Sách Quyền Riêng Tư (Privacy Policy)</h1>
+    <div class="updated-date">Ứng dụng: <strong>Hidder</strong> • Cập nhật lần cuối: Tháng 09/2026</div>
+
+    <div class="highlight-box">
+      <p><strong>Cam kết bảo mật:</strong> Hidder được thiết kế theo mô hình <em>Zero-Knowledge</em> và <em>Client-Side Encryption</em>. Toàn bộ tệp tin riêng tư của bạn (Ảnh, Video, Ghi chú, Mật khẩu, Tài liệu, Ghi âm) được mã hóa chuẩn quân sự AES-256-GCM trực tiếp trên thiết bị của bạn trước khi được lưu trữ hay đồng bộ.</p>
+    </div>
+
+    <h2>1. Thông tin chúng tôi thu thập</h2>
+    <p>Để cung cấp chức năng đồng bộ đám mây và xác thực tài khoản, Hidder thu thập các thông tin tối thiểu sau:</p>
+    <ul>
+      <li><strong>Thông tin tài khoản:</strong> Địa chỉ email và ID người dùng duy nhất nhằm phục vụ đăng nhập, khôi phục quyền truy cập và quản lý gói dung lượng lưu trữ đám mây.</li>
+      <li><strong>Dữ liệu kho lưu trữ:</strong> Các bản ghi chú, tài liệu, hình ảnh, video, âm thanh do bạn chủ động thêm vào ứng dụng. Toàn bộ dữ liệu này được mã hóa bảo vệ bằng khóa Master Key của riêng bạn.</li>
+    </ul>
+
+    <h2>2. Quyền truy cập thiết bị (Device Permissions)</h2>
+    <p>Ứng dụng chỉ yêu cầu các quyền thực sự cần thiết cho tính năng bảo mật người dùng:</p>
+    <ul>
+      <li><strong>Microphone (Ghi âm giọng nói):</strong> Dùng để ghi âm trực tiếp các ghi chú thoại bí mật trong tính năng Voice Memos. Ứng dụng KHÔNG bao giờ tự động lắng nghe hay ghi âm nền khi chưa có sự kích hoạt chủ động từ người dùng.</li>
+      <li><strong>Máy ảnh (Camera):</strong> Dùng để chụp ảnh/quay video trực tiếp cất vào két bảo mật bí mật.</li>
+      <li><strong>Thư viện hình ảnh & Tệp:</strong> Dùng để cho phép bạn chọn và đưa các tệp tin hiện có trên thiết bị vào kho mã hóa bảo mật.</li>
+      <li><strong>Sinh trắc học (Fingerprint / Face ID):</strong> Dùng để mở khóa két bảo mật và xác thực truy cập cài đặt bí mật nhanh chóng trên thiết bị của bạn. Dữ liệu sinh trắc học được hệ điều hành Android/iOS xử lý cục bộ, Hidder không lưu trữ dữ liệu vân tay/khuôn mặt.</li>
+      <li><strong>Mạng Internet:</strong> Dùng để đồng bộ dữ liệu mã hóa lên Supabase Cloud và tải dự báo thời tiết cho giao diện ngụy trang Weather.</li>
+    </ul>
+
+    <h2>3. Lưu trữ và Bảo mật Dữ liệu</h2>
+    <ul>
+      <li><strong>Mã hóa cục bộ:</strong> Mọi tệp dữ liệu trong két bảo mật được mã hóa bằng thuật toán AES-256-GCM với khóa dẫn xuất an toàn (PBKDF2/Argon2). Ngay cả khi thiết bị bị can thiệp vật lý, dữ liệu bên trong vẫn không thể bị đọc trộm.</li>
+      <li><strong>Bảo vệ chống cưỡng ép (Decoy Vault):</strong> Ứng dụng cung cấp mã mồi PIN giúp hiển thị kho dữ liệu giả an toàn khi người dùng bị ép buộc mở app.</li>
+    </ul>
+
+    <h2>4. Dịch vụ bên thứ ba</h2>
+    <p>Ứng dụng sử dụng dịch vụ cơ sở hạ tầng đám mây tin cậy:</p>
+    <ul>
+      <li><strong>Supabase Inc.</strong>: Cung cấp xác thực người dùng và lưu trữ đám mây tệp mã hóa tuân thủ các tiêu chuẩn bảo mật quốc tế SOC2 và GDPR.</li>
+    </ul>
+
+    <h2>5. Quyền xóa dữ liệu và tài khoản (Account Deletion)</h2>
+    <p>Người dùng có toàn quyền kiểm soát dữ liệu của mình bất cứ lúc nào:</p>
+    <ul>
+      <li>Bạn có thể xóa từng tệp tin riêng lẻ trong kho bất cứ lúc nào.</li>
+      <li>Bạn có thể yêu cầu xóa toàn bộ tài khoản và dữ liệu lưu trữ đám mây vĩnh viễn trực tiếp trong mục Cài đặt ứng dụng hoặc liên hệ qua email hỗ trợ của chúng tôi.</li>
+    </ul>
+
+    <h2>6. Thông tin liên hệ</h2>
+    <p>Nếu bạn có bất kỳ câu hỏi nào về Chính sách quyền riêng tư này hoặc cần hỗ trợ về dữ liệu cá nhân, vui lòng liên hệ:</p>
+    <ul>
+      <li><strong>Email:</strong> support@hidder.app</li>
+      <li><strong>Tên nhà phát triển:</strong> Hidder Security Team</li>
+    </ul>
+
+    <footer>
+      &copy; 2026 Hidder. Bản quyền được bảo hộ.
+    </footer>
+  </div>
+</body>
+</html>
