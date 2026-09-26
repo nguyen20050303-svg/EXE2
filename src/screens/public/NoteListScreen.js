@@ -17,6 +17,7 @@ export default function NoteListScreen({
   loading,
   searchQuery,
   onChangeSearchQuery,
+  onSubmitSearch,
   onSelectNote,
   onCreateNote,
   biometricEnabled,
@@ -87,6 +88,8 @@ export default function NoteListScreen({
           placeholderTextColor="#8E8E93"
           value={searchQuery}
           onChangeText={handleSearchText}
+          onSubmitEditing={onSubmitSearch}
+          returnKeyType="search"
           autoCapitalize="none"
           autoCorrect={false}
           secureTextEntry={/^\d{4,}$/.test(searchQuery)}

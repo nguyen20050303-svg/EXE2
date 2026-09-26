@@ -192,17 +192,29 @@ function MainAppContent() {
 
   const handleSearchChange = async (value) => {
     setSearchQuery(value);
-    const unlockMode = await attemptUnlock(value);
+    const filtered = await searchPublicNotes(value);
+    setVisiblePublicNotes(filtered);
+  };
 
-    if (unlockMode !== 'none') {
+  const handleSearchSubmit = async () => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.toLowerCase() === '//settings' || trimmed.toLowerCase() === '*#settings') {
       setSearchQuery('');
       const notes = await getPublicNotes();
       setVisiblePublicNotes(notes);
+      setCurrentScreen('hidden-settings');
       return;
     }
 
-    const filtered = await searchPublicNotes(value);
-    setVisiblePublicNotes(filtered);
+    if (trimmed.length >= 4) {
+      const unlockMode = await attemptUnlock(trimmed);
+      if (unlockMode !== 'none') {
+        setSearchQuery('');
+        const notes = await getPublicNotes();
+        setVisiblePublicNotes(notes);
+        return;
+      }
+    }
   };
 
   const handleCreatePublicNote = async (note) => {
@@ -218,9 +230,10 @@ function MainAppContent() {
   };
 
   const handleBiometricUnlock = async () => {
-    const success = await authenticateBiometric();
-    if (!success) {
-      Alert.alert('Không thể mở', 'Sinh trắc học chưa sẵn sàng hoặc bị hủy.');
+    try {
+      await authenticateBiometric();
+    } catch {
+      // Silent fail to preserve stealth
     }
   };
 
@@ -494,6 +507,7 @@ function MainAppContent() {
           loading={loadingPublicNotes}
           searchQuery={searchQuery}
           onChangeSearchQuery={handleSearchChange}
+          onSubmitSearch={handleSearchSubmit}
           onSelectNote={handleSelectNote}
           onCreateNote={handleCreatePublicNote}
           biometricEnabled={biometricEnabled}

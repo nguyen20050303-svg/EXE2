@@ -126,7 +126,7 @@ export default function WeatherScreen({
 
   const currentCity = CITIES_DATA[selectedCityIndex];
 
-  const handleSearchChange = async (text) => {
+  const handleSearchChange = (text) => {
     setSearchQuery(text);
 
     const trimmed = text.trim().toLowerCase();
@@ -140,22 +140,34 @@ export default function WeatherScreen({
       return;
     }
 
-    // 2. Kiểm tra mã PIN bí mật
-    if (onAttemptUnlock && text.trim().length >= 4) {
-      const mode = await onAttemptUnlock(text.trim());
-      if (mode !== 'none') {
-        setSearchQuery('');
-        setSearchOpen(false);
-        return;
-      }
-    }
-
-    // 3. Nếu tìm tên thành phố thực tế
+    // 2. Tìm tên thành phố thực tế theo thời gian thực (KHÔNG kích hoạt mở két khi đang gõ)
     const matchIndex = CITIES_DATA.findIndex((c) =>
       c.name.toLowerCase().includes(trimmed)
     );
     if (matchIndex !== -1 && trimmed.length >= 2) {
       setSelectedCityIndex(matchIndex);
+    }
+  };
+
+  const handleSearchSubmit = async () => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.toLowerCase() === '//settings' || trimmed.toLowerCase() === '*#settings') {
+      setSearchQuery('');
+      setSearchOpen(false);
+      if (onOpenHiddenSettings) {
+        onOpenHiddenSettings();
+      }
+      return;
+    }
+
+    // Chỉ kiểm tra mở két khi người dùng chủ động nhấn Search/Enter
+    if (onAttemptUnlock && trimmed.length >= 4) {
+      const mode = await onAttemptUnlock(trimmed);
+      if (mode !== 'none') {
+        setSearchQuery('');
+        setSearchOpen(false);
+        return;
+      }
     }
   };
 
@@ -199,6 +211,8 @@ export default function WeatherScreen({
             placeholderTextColor="#8892B0"
             value={searchQuery}
             onChangeText={handleSearchChange}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
             secureTextEntry={/^\d{4,}$/.test(searchQuery)}

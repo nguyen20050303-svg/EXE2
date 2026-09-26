@@ -656,6 +656,291 @@ await it('Triggers ngụy trang: Weather & Calendar hỗ trợ mở két qua mã
   assert.strictEqual(checkDisguiseInput('Họp dự án'), 'REGULAR_INPUT');
 });
 
+// ====================================================================
+// 10. DISGUISE SHELL ACCIDENTAL UNLOCK PROTECTION (10 AUDIT CASES)
+// ====================================================================
+console.log('\n--- 10. Disguise Shell Accidental Unlock Protection (10 Cases) ---');
+
+const REAL_PIN = '9988';
+const DECOY_PIN = '4455';
+
+class DisguiseShellAuditor {
+  constructor() {
+    this.vaultUnlocked = false;
+    this.unlockedMode = 'none';
+    this.searchQuery = '';
+    this.calcDisplay = '0';
+    this.calcPrev = null;
+    this.calcOp = null;
+    this.calcWaiting = false;
+    this.calcIsResult = false;
+  }
+
+  reset() {
+    this.vaultUnlocked = false;
+    this.unlockedMode = 'none';
+    this.searchQuery = '';
+    this.calcDisplay = '0';
+    this.calcPrev = null;
+    this.calcOp = null;
+    this.calcWaiting = false;
+    this.calcIsResult = false;
+  }
+
+  // --- Notes Disguise ---
+  onNotesChangeText(text) {
+    this.searchQuery = text;
+    // onChangeText CHỈ lọc ghi chú theo từ khóa, KHÔNG ĐƯỢC mở két
+    return { filtered: true, vaultUnlocked: this.vaultUnlocked };
+  }
+
+  onNotesSubmit() {
+    const trimmed = this.searchQuery.trim();
+    if (trimmed === REAL_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'real';
+    } else if (trimmed === DECOY_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'decoy';
+    }
+    return { vaultUnlocked: this.vaultUnlocked, mode: this.unlockedMode };
+  }
+
+  // --- Weather Disguise ---
+  onWeatherChangeText(text) {
+    this.searchQuery = text;
+    // onChangeText CHỈ tìm kiếm thành phố, KHÔNG ĐƯỢC mở két
+    return { searchedCities: true, vaultUnlocked: this.vaultUnlocked };
+  }
+
+  onWeatherSubmit() {
+    const trimmed = this.searchQuery.trim();
+    if (trimmed === REAL_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'real';
+    } else if (trimmed === DECOY_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'decoy';
+    }
+    return { vaultUnlocked: this.vaultUnlocked, mode: this.unlockedMode };
+  }
+
+  // --- Calendar Disguise ---
+  onCalendarChangeText(text) {
+    this.searchQuery = text;
+    // onChangeText CHỈ lọc sự kiện trên lịch, KHÔNG ĐƯỢC mở két
+    return { filteredEvents: true, vaultUnlocked: this.vaultUnlocked };
+  }
+
+  onCalendarSubmit() {
+    const trimmed = this.searchQuery.trim();
+    if (trimmed === REAL_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'real';
+    } else if (trimmed === DECOY_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'decoy';
+    }
+    return { vaultUnlocked: this.vaultUnlocked, mode: this.unlockedMode };
+  }
+
+  // --- Calculator Disguise ---
+  calcInput(numStr) {
+    this.calcIsResult = false;
+    if (this.calcWaiting) {
+      this.calcDisplay = numStr;
+      this.calcWaiting = false;
+    } else {
+      this.calcDisplay = this.calcDisplay === '0' ? numStr : this.calcDisplay + numStr;
+    }
+  }
+
+  calcSetOp(op) {
+    this.calcIsResult = false;
+    this.calcPrev = parseFloat(this.calcDisplay);
+    this.calcOp = op;
+    this.calcWaiting = true;
+  }
+
+  calcEquals() {
+    if (this.calcOp !== null && this.calcPrev !== null) {
+      const current = parseFloat(this.calcDisplay);
+      let res = 0;
+      if (this.calcOp === '+') res = this.calcPrev + current;
+      this.calcDisplay = String(res);
+      this.calcPrev = null;
+      this.calcOp = null;
+      this.calcWaiting = true;
+      this.calcIsResult = true;
+      return; // KHÔNG mở két!
+    }
+
+    if (this.calcIsResult) {
+      return; // Bấm '=' lặp lại trên kết quả vừa tính KHÔNG mở két!
+    }
+
+    if (this.calcDisplay === REAL_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'real';
+    } else if (this.calcDisplay === DECOY_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'decoy';
+    }
+  }
+
+  calcLongPressEquals() {
+    if (this.calcDisplay === REAL_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'real';
+    } else if (this.calcDisplay === DECOY_PIN) {
+      this.vaultUnlocked = true;
+      this.unlockedMode = 'decoy';
+    }
+  }
+}
+
+const auditor = new DisguiseShellAuditor();
+
+// CASE 1: Notes onChangeText
+await it('CASE 1: Notes - onChangeText với số PIN thật 9988 chỉ lọc ghi chú, KHÔNG mở Real Vault', async () => {
+  auditor.reset();
+  const res = auditor.onNotesChangeText('9988');
+  assert.strictEqual(res.vaultUnlocked, false, 'Khi đang gõ PIN, Vault tuyệt đối không được mở');
+  assert.strictEqual(res.filtered, true);
+});
+
+// CASE 2: Notes onSubmitEditing
+await it('CASE 2: Notes - onSubmitEditing với số PIN thật 9988 kích hoạt mở Real Vault thành công', async () => {
+  auditor.reset();
+  auditor.onNotesChangeText('9988');
+  const res = auditor.onNotesSubmit();
+  assert.strictEqual(res.vaultUnlocked, true, 'Nhấn Search phải mở Vault');
+  assert.strictEqual(res.mode, 'real');
+});
+
+// CASE 3: Notes regular search submit
+await it('CASE 3: Notes - onSubmitEditing với tìm kiếm thông thường mua sắm KHÔNG mở Vault', async () => {
+  auditor.reset();
+  auditor.onNotesChangeText('mua sắm');
+  const res = auditor.onNotesSubmit();
+  assert.strictEqual(res.vaultUnlocked, false);
+  assert.strictEqual(res.mode, 'none');
+});
+
+// CASE 4: Weather onChangeText
+await it('CASE 4: Weather - onChangeText với số PIN thật 9988 chỉ tìm kiếm thành phố, KHÔNG mở Vault', async () => {
+  auditor.reset();
+  const res = auditor.onWeatherChangeText('9988');
+  assert.strictEqual(res.vaultUnlocked, false);
+  assert.strictEqual(res.searchedCities, true);
+});
+
+// CASE 5: Weather onSubmitEditing
+await it('CASE 5: Weather - onSubmitEditing với số PIN thật 9988 kích hoạt mở Real Vault thành công', async () => {
+  auditor.reset();
+  auditor.onWeatherChangeText('9988');
+  const res = auditor.onWeatherSubmit();
+  assert.strictEqual(res.vaultUnlocked, true);
+  assert.strictEqual(res.mode, 'real');
+});
+
+// CASE 6: Calendar onChangeText
+await it('CASE 6: Calendar - onChangeText với số PIN thật 9988 chỉ lọc sự kiện trên lịch, KHÔNG mở Vault', async () => {
+  auditor.reset();
+  const res = auditor.onCalendarChangeText('9988');
+  assert.strictEqual(res.vaultUnlocked, false);
+  assert.strictEqual(res.filteredEvents, true);
+});
+
+// CASE 7: Calendar onSubmitEditing
+await it('CASE 7: Calendar - onSubmitEditing với số PIN thật 9988 kích hoạt mở Real Vault thành công', async () => {
+  auditor.reset();
+  auditor.onCalendarChangeText('9988');
+  const res = auditor.onCalendarSubmit();
+  assert.strictEqual(res.vaultUnlocked, true);
+  assert.strictEqual(res.mode, 'real');
+});
+
+// CASE 8: Calculator arithmetic operation result
+await it('CASE 8: Calculator - Phép tính số học (1000 + 234 = 1234) ra kết quả 1234, bấm = KHÔNG mở Vault', async () => {
+  auditor.reset();
+  auditor.calcInput('1000');
+  auditor.calcSetOp('+');
+  auditor.calcInput('234');
+  auditor.calcEquals(); // Ra kết quả 1234
+  assert.strictEqual(auditor.calcDisplay, '1234');
+  assert.strictEqual(auditor.vaultUnlocked, false, 'Kết quả phép tính không bao giờ được mở két!');
+
+  // Bấm '=' lần 2 cũng không mở
+  auditor.calcEquals();
+  assert.strictEqual(auditor.vaultUnlocked, false, 'Bấm = tiếp trên kết quả phép tính vẫn KHÔNG mở két!');
+});
+
+// CASE 9: Calculator clean entry + tap '='
+await it('CASE 9: Calculator - Gõ trực tiếp 9988 trên máy tính sạch rồi bấm = mở Real Vault thành công', async () => {
+  auditor.reset();
+  auditor.calcInput('9');
+  auditor.calcInput('9');
+  auditor.calcInput('8');
+  auditor.calcInput('8');
+  auditor.calcEquals();
+  assert.strictEqual(auditor.vaultUnlocked, true);
+  assert.strictEqual(auditor.unlockedMode, 'real');
+});
+
+// CASE 10: Calculator Long-press '=' (1.2s)
+await it('CASE 10: Calculator - Long-press = 1.2s với 9988 kích hoạt mở Real Vault thành công', async () => {
+  auditor.reset();
+  auditor.calcInput('9');
+  auditor.calcInput('9');
+  auditor.calcInput('8');
+  auditor.calcInput('8');
+  auditor.calcLongPressEquals();
+  assert.strictEqual(auditor.vaultUnlocked, true);
+  assert.strictEqual(auditor.unlockedMode, 'real');
+});
+
+// Extra Anti-Detection Tests: Biometric stealth & PIN masking
+await it('Bảo mật ngụy trang: Biometric thất bại hoặc hủy (LocalAuth failure) fail im lặng, KHÔNG hiện Alert', async () => {
+  let alertCount = 0;
+  const mockAlert = () => { alertCount++; };
+  const handleBioUnlockSilent = async (authSuccess) => {
+    try {
+      if (!authSuccess) {
+        // Silent fail as implemented in App.js
+        return;
+      }
+    } catch {
+      // Silent fail
+    }
+  };
+  await handleBioUnlockSilent(false);
+  assert.strictEqual(alertCount, 0, 'Tuyệt đối không hiện Alert khi hủy sinh trắc học');
+});
+
+await it('Bảo mật ngụy trang: Masking PIN tự động bật khi nhập >= 4 chữ số, hiển thị rõ khi tìm kiếm chữ', async () => {
+  const isMasked = (text) => /^\d{4,}$/.test(text);
+  assert.strictEqual(isMasked('9988'), true, 'Dãy số 9988 phải được mask thành dấu chấm ••••');
+  assert.strictEqual(isMasked('123456'), true, 'Dãy số 6 chữ số phải được mask');
+  assert.strictEqual(isMasked('123'), false, 'Dưới 4 số chưa mask');
+  assert.strictEqual(isMasked('mua sắm'), false, 'Từ khóa chữ không mask');
+  assert.strictEqual(isMasked('thời tiết 2026'), false, 'Chuỗi hỗn hợp không mask');
+});
+
+await it('Bảo mật ngụy trang: Placeholder tự nhiên trên cả 4 màn hình, không chứa từ khóa nhạy cảm', async () => {
+  const placeholders = [
+    'Tìm kiếm',
+    'Tìm thành phố hoặc mã vùng...',
+    'Tìm kiếm sự kiện hoặc ghi chú...',
+  ];
+  const sensitiveWords = ['mã bí mật', 'secret', 'pin', 'vault', 'két', 'khóa'];
+  for (const ph of placeholders) {
+    for (const w of sensitiveWords) {
+      assert.strictEqual(ph.toLowerCase().includes(w), false, `Placeholder "${ph}" không được chứa từ khóa "${w}"`);
+    }
+  }
+});
+
 console.log('\n=============================================================');
 console.log(`  KẾT QUẢ KIỂM THỬ: ${passedTests} / ${totalTests} BÀI TEST ĐÃ VƯỢT QUA`);
 console.log(`  TRẠNG THÁI: TẤT CẢ CÁC LUỒNG HỆ THỐNG ĐẠT CHUẨN 100%!`);

@@ -19,8 +19,10 @@ export default function CalculatorScreen({
   const [operation, setOperation] = useState(null);
   const [waitingForNewValue, setWaitingForNewValue] = useState(false);
   const [rawInputBuffer, setRawInputBuffer] = useState('');
+  const [isCalculatedResult, setIsCalculatedResult] = useState(false);
 
   const handleNumberInput = (numStr) => {
+    setIsCalculatedResult(false);
     // Lưu vào buffer bí mật
     setRawInputBuffer((prev) => prev + numStr);
 
@@ -33,6 +35,7 @@ export default function CalculatorScreen({
   };
 
   const handleDot = () => {
+    setIsCalculatedResult(false);
     setRawInputBuffer((prev) => prev + '.');
     if (waitingForNewValue) {
       setDisplayValue('0.');
@@ -50,6 +53,7 @@ export default function CalculatorScreen({
     setOperation(null);
     setWaitingForNewValue(false);
     setRawInputBuffer('');
+    setIsCalculatedResult(false);
   };
 
   const handleToggleSign = () => {
@@ -67,6 +71,7 @@ export default function CalculatorScreen({
   };
 
   const handleOperation = (op) => {
+    setIsCalculatedResult(false);
     setRawInputBuffer((prev) => prev + op);
     setPreviousValue(parseFloat(displayValue));
     setOperation(op);
@@ -99,10 +104,16 @@ export default function CalculatorScreen({
       setOperation(null);
       setWaitingForNewValue(true);
       setRawInputBuffer('');
+      setIsCalculatedResult(true);
       return;
     }
 
-    // 2. Nếu người dùng nhập dãy số trực tiếp rồi bấm '=' -> kiểm tra mã bí mật
+    // 2. Nếu đang hiển thị kết quả của một phép tính trước đó, bấm '=' không bao giờ mở két
+    if (isCalculatedResult) {
+      return;
+    }
+
+    // 3. Nếu người dùng nhập dãy số trực tiếp trên máy tính sạch rồi bấm '=' -> kiểm tra mã bí mật
     if (onAttemptUnlock) {
       const modeFromDisplay = await onAttemptUnlock(displayValue);
       if (modeFromDisplay !== 'none') {
@@ -119,7 +130,7 @@ export default function CalculatorScreen({
       }
     }
 
-    // 3. Nếu không phải mã bí mật -> hiển thị số bình thường
+    // 4. Nếu không phải mã bí mật -> hiển thị số bình thường
     const result = calculateResult();
     setDisplayValue(String(result));
     setPreviousValue(null);

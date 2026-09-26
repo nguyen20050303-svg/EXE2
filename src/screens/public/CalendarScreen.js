@@ -145,11 +145,11 @@ export default function CalendarScreen({
     setSelectedDay(today.getDate());
   };
 
-  const handleSearchChange = async (text) => {
+  const handleSearchChange = (text) => {
     setSearchQuery(text);
     const trimmed = text.trim().toLowerCase();
 
-    // 1. Vào Cài đặt ẩn
+    // 1. Vào Cài đặt ẩn qua mã lệnh
     if (trimmed === '//settings' || trimmed === '*#settings') {
       setSearchQuery('');
       setShowSearch(false);
@@ -158,10 +158,22 @@ export default function CalendarScreen({
       }
       return;
     }
+  };
 
-    // 2. Mở két bí mật
-    if (onAttemptUnlock && text.trim().length >= 4) {
-      const mode = await onAttemptUnlock(text.trim());
+  const handleSearchSubmit = async () => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.toLowerCase() === '//settings' || trimmed.toLowerCase() === '*#settings') {
+      setSearchQuery('');
+      setShowSearch(false);
+      if (onOpenHiddenSettings) {
+        onOpenHiddenSettings();
+      }
+      return;
+    }
+
+    // Chỉ kiểm tra mở két khi người dùng chủ động nhấn Search/Enter
+    if (onAttemptUnlock && trimmed.length >= 4) {
+      const mode = await onAttemptUnlock(trimmed);
       if (mode !== 'none') {
         setSearchQuery('');
         setShowSearch(false);
@@ -267,6 +279,8 @@ export default function CalendarScreen({
             placeholderTextColor="#9CA3AF"
             value={searchQuery}
             onChangeText={handleSearchChange}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
             secureTextEntry={/^\d{4,}$/.test(searchQuery)}
