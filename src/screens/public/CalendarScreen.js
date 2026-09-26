@@ -76,6 +76,7 @@ export default function CalendarScreen({
   biometricEnabled,
   onBiometricUnlock,
   onHiddenGesture,
+  onSharedAuth,
   onOpenHiddenSettings,
 }) {
   const today = useMemo(() => new Date(), []);
@@ -147,40 +148,8 @@ export default function CalendarScreen({
   };
 
   const handleSearchChange = (text) => {
+    // Event search hoàn toàn "Blind" đối với Vault
     setSearchQuery(text);
-    const trimmed = text.trim().toLowerCase();
-
-    // 1. Vào Cài đặt ẩn qua mã lệnh
-    if (trimmed === '//settings' || trimmed === '*#settings') {
-      setSearchQuery('');
-      setShowSearch(false);
-      if (onOpenHiddenSettings) {
-        onOpenHiddenSettings();
-      }
-      return;
-    }
-  };
-
-  const handleSearchSubmit = async () => {
-    const trimmed = searchQuery.trim();
-    if (trimmed.toLowerCase() === '//settings' || trimmed.toLowerCase() === '*#settings') {
-      setSearchQuery('');
-      setShowSearch(false);
-      if (onOpenHiddenSettings) {
-        onOpenHiddenSettings();
-      }
-      return;
-    }
-
-    // Chỉ kiểm tra mở két khi người dùng chủ động nhấn Search/Enter
-    if (onAttemptUnlock && trimmed.length >= 4) {
-      const mode = await onAttemptUnlock(trimmed);
-      if (mode !== 'none') {
-        setSearchQuery('');
-        setShowSearch(false);
-        return;
-      }
-    }
   };
 
   // Sự kiện của ngày được chọn
@@ -237,15 +206,22 @@ export default function CalendarScreen({
 
       {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onHiddenGesture || onBiometricUnlock}
-          onLongPress={onOpenHiddenSettings}
-          delayLongPress={2000}
-        >
-          <Text style={styles.headerTitle}>{monthLabel}</Text>
-          <Text style={styles.headerSubtitle}>Lịch biểu cá nhân & Sự kiện</Text>
-        </TouchableOpacity>
+        <View>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={onSharedAuth || onHiddenGesture || onBiometricUnlock}
+            delayLongPress={1500}
+          >
+            <Text style={styles.headerTitle}>{monthLabel}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={onOpenHiddenSettings}
+            delayLongPress={2000}
+          >
+            <Text style={styles.headerSubtitle}>Lịch biểu cá nhân & Sự kiện</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.todayBtn} onPress={handleToday}>
@@ -280,11 +256,9 @@ export default function CalendarScreen({
             placeholderTextColor="#9CA3AF"
             value={searchQuery}
             onChangeText={handleSearchChange}
-            onSubmitEditing={handleSearchSubmit}
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
-            secureTextEntry={/^\d{4,}$/.test(searchQuery)}
             autoFocus
           />
           {searchQuery.length > 0 ? (

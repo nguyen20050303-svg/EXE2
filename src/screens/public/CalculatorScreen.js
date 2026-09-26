@@ -13,6 +13,7 @@ export default function CalculatorScreen({
   biometricEnabled,
   onBiometricUnlock,
   onHiddenGesture,
+  onSharedAuth,
   onOpenHiddenSettings,
 }) {
   const [displayValue, setDisplayValue] = useState('0');
@@ -96,65 +97,22 @@ export default function CalculatorScreen({
     }
   };
 
-  const handleEquals = async () => {
-    // 1. Nếu đang thực hiện phép tính (+, -, ×, ÷), LUÔN tính toán số học thật để bảo vệ bí mật
-    if (operation !== null && previousValue !== null) {
-      const result = calculateResult();
-      setDisplayValue(String(result));
-      setPreviousValue(null);
-      setOperation(null);
-      setWaitingForNewValue(true);
-      setRawInputBuffer('');
-      setIsCalculatedResult(true);
-      return;
-    }
-
-    // 2. Nếu đang hiển thị kết quả của một phép tính trước đó, bấm '=' không bao giờ mở két
-    if (isCalculatedResult) {
-      return;
-    }
-
-    // 3. Nếu người dùng nhập dãy số trực tiếp trên máy tính sạch rồi bấm '=' -> kiểm tra mã bí mật
-    if (onAttemptUnlock) {
-      const modeFromDisplay = await onAttemptUnlock(displayValue);
-      if (modeFromDisplay !== 'none') {
-        handleClear();
-        return;
-      }
-
-      if (rawInputBuffer) {
-        const modeFromBuffer = await onAttemptUnlock(rawInputBuffer);
-        if (modeFromBuffer !== 'none') {
-          handleClear();
-          return;
-        }
-      }
-    }
-
-    // 4. Nếu không phải mã bí mật -> hiển thị số bình thường
+  const handleEquals = () => {
+    // 1. Phép tính số học bình thường (kết quả dù trùng PIN cũng KHÔNG unlock)
     const result = calculateResult();
     setDisplayValue(String(result));
     setPreviousValue(null);
     setOperation(null);
     setWaitingForNewValue(true);
     setRawInputBuffer('');
+    setIsCalculatedResult(true);
   };
 
-  // Cử chỉ khẩn cấp: Nhấn giữ phím '=' 1.2 giây -> Luôn ép kiểm tra mở két
-  const handleLongPressEquals = async () => {
-    if (onAttemptUnlock) {
-      const mode = await onAttemptUnlock(displayValue);
-      if (mode !== 'none') {
-        handleClear();
-        return;
-      }
-      if (rawInputBuffer) {
-        const modeBuf = await onAttemptUnlock(rawInputBuffer);
-        if (modeBuf !== 'none') {
-          handleClear();
-          return;
-        }
-      }
+  // Cử chỉ ẩn: Nhấn giữ phím '=' 1.2 giây -> Kích hoạt Shared Authentication
+  const handleLongPressEquals = () => {
+    const trigger = onSharedAuth || onHiddenGesture || onBiometricUnlock;
+    if (trigger) {
+      trigger();
     }
   };
 

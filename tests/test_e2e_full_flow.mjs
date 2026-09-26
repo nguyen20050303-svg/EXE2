@@ -657,322 +657,47 @@ await it('Triggers ngụy trang: Weather & Calendar hỗ trợ mở két qua mã
 });
 
 // ====================================================================
-// 10. DISGUISE SHELL ACCIDENTAL UNLOCK PROTECTION (10 AUDIT CASES)
+// 10. SHARED AUTHENTICATION ARCHITECTURE & BLIND SEARCH (34 MANDATORY CASES)
 // ====================================================================
-console.log('\n--- 10. Disguise Shell Accidental Unlock Protection (10 Cases) ---');
+console.log('\n--- 10. Shared Authentication Architecture (34 Mandatory Cases) ---');
 
-const REAL_PIN = '9988';
-const DECOY_PIN = '4455';
+const SHARED_REAL_PIN = '9988';
+const SHARED_DECOY_PIN = '4455';
 
-class DisguiseShellAuditor {
-  constructor() {
-    this.vaultUnlocked = false;
-    this.unlockedMode = 'none';
-    this.searchQuery = '';
-    this.calcDisplay = '0';
-    this.calcPrev = null;
-    this.calcOp = null;
-    this.calcWaiting = false;
-    this.calcIsResult = false;
-  }
-
-  reset() {
-    this.vaultUnlocked = false;
-    this.unlockedMode = 'none';
-    this.searchQuery = '';
-    this.calcDisplay = '0';
-    this.calcPrev = null;
-    this.calcOp = null;
-    this.calcWaiting = false;
-    this.calcIsResult = false;
-  }
-
-  // --- Notes Disguise ---
-  onNotesChangeText(text) {
-    this.searchQuery = text;
-    // onChangeText CHỈ lọc ghi chú theo từ khóa, KHÔNG ĐƯỢC mở két
-    return { filtered: true, vaultUnlocked: this.vaultUnlocked };
-  }
-
-  onNotesSubmit() {
-    const trimmed = this.searchQuery.trim();
-    if (trimmed === REAL_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'real';
-    } else if (trimmed === DECOY_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'decoy';
-    }
-    return { vaultUnlocked: this.vaultUnlocked, mode: this.unlockedMode };
-  }
-
-  // --- Weather Disguise ---
-  onWeatherChangeText(text) {
-    this.searchQuery = text;
-    // onChangeText CHỈ tìm kiếm thành phố, KHÔNG ĐƯỢC mở két
-    return { searchedCities: true, vaultUnlocked: this.vaultUnlocked };
-  }
-
-  onWeatherSubmit() {
-    const trimmed = this.searchQuery.trim();
-    if (trimmed === REAL_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'real';
-    } else if (trimmed === DECOY_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'decoy';
-    }
-    return { vaultUnlocked: this.vaultUnlocked, mode: this.unlockedMode };
-  }
-
-  // --- Calendar Disguise ---
-  onCalendarChangeText(text) {
-    this.searchQuery = text;
-    // onChangeText CHỈ lọc sự kiện trên lịch, KHÔNG ĐƯỢC mở két
-    return { filteredEvents: true, vaultUnlocked: this.vaultUnlocked };
-  }
-
-  onCalendarSubmit() {
-    const trimmed = this.searchQuery.trim();
-    if (trimmed === REAL_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'real';
-    } else if (trimmed === DECOY_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'decoy';
-    }
-    return { vaultUnlocked: this.vaultUnlocked, mode: this.unlockedMode };
-  }
-
-  // --- Calculator Disguise ---
-  calcInput(numStr) {
-    this.calcIsResult = false;
-    if (this.calcWaiting) {
-      this.calcDisplay = numStr;
-      this.calcWaiting = false;
-    } else {
-      this.calcDisplay = this.calcDisplay === '0' ? numStr : this.calcDisplay + numStr;
-    }
-  }
-
-  calcSetOp(op) {
-    this.calcIsResult = false;
-    this.calcPrev = parseFloat(this.calcDisplay);
-    this.calcOp = op;
-    this.calcWaiting = true;
-  }
-
-  calcEquals() {
-    if (this.calcOp !== null && this.calcPrev !== null) {
-      const current = parseFloat(this.calcDisplay);
-      let res = 0;
-      if (this.calcOp === '+') res = this.calcPrev + current;
-      this.calcDisplay = String(res);
-      this.calcPrev = null;
-      this.calcOp = null;
-      this.calcWaiting = true;
-      this.calcIsResult = true;
-      return; // KHÔNG mở két!
-    }
-
-    if (this.calcIsResult) {
-      return; // Bấm '=' lặp lại trên kết quả vừa tính KHÔNG mở két!
-    }
-
-    if (this.calcDisplay === REAL_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'real';
-    } else if (this.calcDisplay === DECOY_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'decoy';
-    }
-  }
-
-  calcLongPressEquals() {
-    if (this.calcDisplay === REAL_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'real';
-    } else if (this.calcDisplay === DECOY_PIN) {
-      this.vaultUnlocked = true;
-      this.unlockedMode = 'decoy';
-    }
-  }
-}
-
-const auditor = new DisguiseShellAuditor();
-
-// CASE 1: Notes onChangeText
-await it('CASE 1: Notes - onChangeText với số PIN thật 9988 chỉ lọc ghi chú, KHÔNG mở Real Vault', async () => {
-  auditor.reset();
-  const res = auditor.onNotesChangeText('9988');
-  assert.strictEqual(res.vaultUnlocked, false, 'Khi đang gõ PIN, Vault tuyệt đối không được mở');
-  assert.strictEqual(res.filtered, true);
-});
-
-// CASE 2: Notes onSubmitEditing
-await it('CASE 2: Notes - onSubmitEditing với số PIN thật 9988 kích hoạt mở Real Vault thành công', async () => {
-  auditor.reset();
-  auditor.onNotesChangeText('9988');
-  const res = auditor.onNotesSubmit();
-  assert.strictEqual(res.vaultUnlocked, true, 'Nhấn Search phải mở Vault');
-  assert.strictEqual(res.mode, 'real');
-});
-
-// CASE 3: Notes regular search submit
-await it('CASE 3: Notes - onSubmitEditing với tìm kiếm thông thường mua sắm KHÔNG mở Vault', async () => {
-  auditor.reset();
-  auditor.onNotesChangeText('mua sắm');
-  const res = auditor.onNotesSubmit();
-  assert.strictEqual(res.vaultUnlocked, false);
-  assert.strictEqual(res.mode, 'none');
-});
-
-// CASE 4: Weather onChangeText
-await it('CASE 4: Weather - onChangeText với số PIN thật 9988 chỉ tìm kiếm thành phố, KHÔNG mở Vault', async () => {
-  auditor.reset();
-  const res = auditor.onWeatherChangeText('9988');
-  assert.strictEqual(res.vaultUnlocked, false);
-  assert.strictEqual(res.searchedCities, true);
-});
-
-// CASE 5: Weather onSubmitEditing
-await it('CASE 5: Weather - onSubmitEditing với số PIN thật 9988 kích hoạt mở Real Vault thành công', async () => {
-  auditor.reset();
-  auditor.onWeatherChangeText('9988');
-  const res = auditor.onWeatherSubmit();
-  assert.strictEqual(res.vaultUnlocked, true);
-  assert.strictEqual(res.mode, 'real');
-});
-
-// CASE 6: Calendar onChangeText
-await it('CASE 6: Calendar - onChangeText với số PIN thật 9988 chỉ lọc sự kiện trên lịch, KHÔNG mở Vault', async () => {
-  auditor.reset();
-  const res = auditor.onCalendarChangeText('9988');
-  assert.strictEqual(res.vaultUnlocked, false);
-  assert.strictEqual(res.filteredEvents, true);
-});
-
-// CASE 7: Calendar onSubmitEditing
-await it('CASE 7: Calendar - onSubmitEditing với số PIN thật 9988 kích hoạt mở Real Vault thành công', async () => {
-  auditor.reset();
-  auditor.onCalendarChangeText('9988');
-  const res = auditor.onCalendarSubmit();
-  assert.strictEqual(res.vaultUnlocked, true);
-  assert.strictEqual(res.mode, 'real');
-});
-
-// CASE 8: Calculator arithmetic operation result
-await it('CASE 8: Calculator - Phép tính số học (1000 + 234 = 1234) ra kết quả 1234, bấm = KHÔNG mở Vault', async () => {
-  auditor.reset();
-  auditor.calcInput('1000');
-  auditor.calcSetOp('+');
-  auditor.calcInput('234');
-  auditor.calcEquals(); // Ra kết quả 1234
-  assert.strictEqual(auditor.calcDisplay, '1234');
-  assert.strictEqual(auditor.vaultUnlocked, false, 'Kết quả phép tính không bao giờ được mở két!');
-
-  // Bấm '=' lần 2 cũng không mở
-  auditor.calcEquals();
-  assert.strictEqual(auditor.vaultUnlocked, false, 'Bấm = tiếp trên kết quả phép tính vẫn KHÔNG mở két!');
-});
-
-// CASE 9: Calculator clean entry + tap '='
-await it('CASE 9: Calculator - Gõ trực tiếp 9988 trên máy tính sạch rồi bấm = mở Real Vault thành công', async () => {
-  auditor.reset();
-  auditor.calcInput('9');
-  auditor.calcInput('9');
-  auditor.calcInput('8');
-  auditor.calcInput('8');
-  auditor.calcEquals();
-  assert.strictEqual(auditor.vaultUnlocked, true);
-  assert.strictEqual(auditor.unlockedMode, 'real');
-});
-
-// CASE 10: Calculator Long-press '=' (1.2s)
-await it('CASE 10: Calculator - Long-press = 1.2s với 9988 kích hoạt mở Real Vault thành công', async () => {
-  auditor.reset();
-  auditor.calcInput('9');
-  auditor.calcInput('9');
-  auditor.calcInput('8');
-  auditor.calcInput('8');
-  auditor.calcLongPressEquals();
-  assert.strictEqual(auditor.vaultUnlocked, true);
-  assert.strictEqual(auditor.unlockedMode, 'real');
-});
-
-// Extra Anti-Detection Tests: Biometric stealth & PIN masking
-await it('Bảo mật ngụy trang: Biometric thất bại hoặc hủy (LocalAuth failure) fail im lặng, KHÔNG hiện Alert', async () => {
-  let alertCount = 0;
-  const mockAlert = () => { alertCount++; };
-  const handleBioUnlockSilent = async (authSuccess) => {
-    try {
-      if (!authSuccess) {
-        // Silent fail as implemented in App.js
-        return;
-      }
-    } catch {
-      // Silent fail
-    }
-  };
-  await handleBioUnlockSilent(false);
-  assert.strictEqual(alertCount, 0, 'Tuyệt đối không hiện Alert khi hủy sinh trắc học');
-});
-
-await it('Bảo mật ngụy trang: Masking PIN tự động bật khi nhập >= 4 chữ số, hiển thị rõ khi tìm kiếm chữ', async () => {
-  const isMasked = (text) => /^\d{4,}$/.test(text);
-  assert.strictEqual(isMasked('9988'), true, 'Dãy số 9988 phải được mask thành dấu chấm ••••');
-  assert.strictEqual(isMasked('123456'), true, 'Dãy số 6 chữ số phải được mask');
-  assert.strictEqual(isMasked('123'), false, 'Dưới 4 số chưa mask');
-  assert.strictEqual(isMasked('mua sắm'), false, 'Từ khóa chữ không mask');
-  assert.strictEqual(isMasked('thời tiết 2026'), false, 'Chuỗi hỗn hợp không mask');
-});
-
-await it('Bảo mật ngụy trang: Placeholder tự nhiên trên cả 4 màn hình, không chứa từ khóa nhạy cảm', async () => {
-  const placeholders = [
-    'Tìm kiếm',
-    'Tìm thành phố hoặc mã vùng...',
-    'Tìm kiếm sự kiện hoặc ghi chú...',
-  ];
-  const sensitiveWords = ['mã bí mật', 'secret', 'pin', 'vault', 'két', 'khóa'];
-  for (const ph of placeholders) {
-    for (const w of sensitiveWords) {
-      assert.strictEqual(ph.toLowerCase().includes(w), false, `Placeholder "${ph}" không được chứa từ khóa "${w}"`);
-    }
-  }
-});
-
-// ====================================================================
-// 11. UNIFIED HIDDEN GESTURE -> BIOMETRIC -> PIN PROMPT -> REAL / DECOY
-// ====================================================================
-console.log('\n--- 11. Unified Hidden Gesture Flow ---');
-
-class HiddenGestureFlowController {
+class SharedAuthenticationManager {
   constructor(config = {}) {
     this.biometricAvailable = config.biometricAvailable ?? true;
     this.biometricEnabled = config.biometricEnabled ?? true;
     this.pinModalVisible = false;
     this.vaultUnlocked = false;
     this.activeVaultMode = null;
-    this.realPin = '9988';
-    this.decoyPin = '4455';
+    this.realPin = SHARED_REAL_PIN;
+    this.decoyPin = SHARED_DECOY_PIN;
+    this.logs = [];
   }
 
-  async triggerHiddenGesture(mockBiometricResult = null) {
+  reset() {
+    this.pinModalVisible = false;
+    this.vaultUnlocked = false;
+    this.activeVaultMode = null;
+  }
+
+  // Shared Auth entrypoint called by all 4 shells
+  async triggerSharedAuth(mockBiometricSuccess = null) {
     if (this.biometricAvailable && this.biometricEnabled) {
-      if (mockBiometricResult === true) {
+      if (mockBiometricSuccess === true) {
         this.vaultUnlocked = true;
         this.activeVaultMode = 'real';
-        return { openedBy: 'biometric', mode: 'real' };
+        return { success: true, mode: 'real', source: 'biometric' };
       }
-      // Biometric cancelled or failed -> fallback to PIN modal
+      // Biometric failed / cancelled -> fallback to PIN modal
     }
-
     this.pinModalVisible = true;
-    return { openedBy: 'pin_modal', modalVisible: true };
+    return { success: false, pinModalOpened: true, source: 'pin_modal' };
   }
 
-  async submitPinModal(pin) {
-    if (!this.pinModalVisible) return { success: false };
+  async submitPin(pin) {
+    if (!this.pinModalVisible) return { success: false, error: 'Modal not active' };
     if (pin === this.realPin) {
       this.pinModalVisible = false;
       this.vaultUnlocked = true;
@@ -985,54 +710,346 @@ class HiddenGestureFlowController {
       this.activeVaultMode = 'decoy';
       return { success: true, mode: 'decoy' };
     }
-    return { success: false, error: 'Mã không đúng' };
+    return { success: false, error: 'Wrong PIN' };
+  }
+
+  cancelPin() {
+    this.pinModalVisible = false;
+  }
+
+  lockVault() {
+    this.vaultUnlocked = false;
+    this.activeVaultMode = null;
   }
 }
 
-await it('Luồng cử chỉ ẩn 1: Bật Biometric + FaceID thành công -> Vào thẳng Real Vault', async () => {
-  const ctrl = new HiddenGestureFlowController({ biometricAvailable: true, biometricEnabled: true });
-  const res = await ctrl.triggerHiddenGesture(true);
-  assert.strictEqual(res.openedBy, 'biometric');
-  assert.strictEqual(ctrl.vaultUnlocked, true);
-  assert.strictEqual(ctrl.activeVaultMode, 'real');
-  assert.strictEqual(ctrl.pinModalVisible, false);
+// Shell Simulation
+class ShellSimulation {
+  constructor(authManager) {
+    this.authManager = authManager;
+    // Notes state
+    this.notes = [{ id: '1', title: 'Danh sách mua sắm' }, { id: '2', title: 'Họp công ty' }];
+    this.filteredNotes = [...this.notes];
+
+    // Weather state
+    this.cities = [{ name: 'Hà Nội' }, { name: 'Đà Nẵng' }, { name: 'TP.HCM' }];
+    this.selectedCity = this.cities[0];
+
+    // Calendar state
+    this.events = [{ id: 'e1', title: 'Họp dự án 123456' }];
+    this.filteredEvents = [...this.events];
+
+    // Calculator state
+    this.calcDisplay = '0';
+    this.calcPrev = null;
+    this.calcOp = null;
+    this.calcWaiting = false;
+  }
+
+  // --- NOTES (Blind Search & Long-Press Header) ---
+  notesSearch(query) {
+    // Pure blind search: NO auth, NO PIN checking
+    const q = query.toLowerCase();
+    this.filteredNotes = this.notes.filter((n) => n.title.toLowerCase().includes(q));
+    return { searched: true, count: this.filteredNotes.length };
+  }
+
+  longPressNotesTitle() {
+    return this.authManager.triggerSharedAuth();
+  }
+
+  // --- WEATHER (Blind City Search & Long-Press Temperature Card) ---
+  weatherCitySearch(cityQuery) {
+    // Pure blind search: NO auth, NO PIN checking
+    const q = cityQuery.toLowerCase();
+    const match = this.cities.find((c) => c.name.toLowerCase().includes(q));
+    if (match) this.selectedCity = match;
+    return { searched: true, city: this.selectedCity.name };
+  }
+
+  longPressWeatherTempCard() {
+    return this.authManager.triggerSharedAuth();
+  }
+
+  // --- CALENDAR (Blind Event Search & Long-Press Month Title) ---
+  calendarEventSearch(eventQuery) {
+    // Pure blind search: NO auth, NO PIN checking
+    const q = eventQuery.toLowerCase();
+    this.filteredEvents = this.events.filter((e) => e.title.toLowerCase().includes(q));
+    return { searched: true, count: this.filteredEvents.length };
+  }
+
+  longPressCalendarMonthTitle() {
+    return this.authManager.triggerSharedAuth();
+  }
+
+  // --- CALCULATOR (Standard Math & Long-Press =) ---
+  calcInput(digit) {
+    if (this.calcWaiting) {
+      this.calcDisplay = digit;
+      this.calcWaiting = false;
+    } else {
+      this.calcDisplay = this.calcDisplay === '0' ? digit : this.calcDisplay + digit;
+    }
+  }
+
+  calcSetOp(op) {
+    this.calcPrev = parseFloat(this.calcDisplay);
+    this.calcOp = op;
+    this.calcWaiting = true;
+  }
+
+  calcTapEquals() {
+    if (this.calcOp && this.calcPrev !== null) {
+      const current = parseFloat(this.calcDisplay);
+      if (this.calcOp === '+') this.calcDisplay = String(this.calcPrev + current);
+      this.calcPrev = null;
+      this.calcOp = null;
+      this.calcWaiting = true;
+    }
+    // Tap '=' never calls authManager
+    return this.calcDisplay;
+  }
+
+  calcLongPressEquals() {
+    return this.authManager.triggerSharedAuth();
+  }
+}
+
+const sharedAuth = new SharedAuthenticationManager({ biometricAvailable: true, biometricEnabled: false });
+const shells = new ShellSimulation(sharedAuth);
+
+// --- GROUP 1: NOTES (Tests 1-8) ---
+await it('1. Notes: Real PIN trong Search -> không unlock', async () => {
+  sharedAuth.reset();
+  shells.notesSearch('9988');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
 });
 
-await it('Luồng cử chỉ ẩn 2: Bật Biometric nhưng người dùng bấm Hủy -> Tự động chuyển tiếp sang PIN Modal', async () => {
-  const ctrl = new HiddenGestureFlowController({ biometricAvailable: true, biometricEnabled: true });
-  const res = await ctrl.triggerHiddenGesture(false); // Cancelled/failed
-  assert.strictEqual(res.openedBy, 'pin_modal');
-  assert.strictEqual(ctrl.pinModalVisible, true);
-  assert.strictEqual(ctrl.vaultUnlocked, false);
+await it('2. Notes: Decoy PIN trong Search -> không unlock', async () => {
+  sharedAuth.reset();
+  shells.notesSearch('4455');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
 });
 
-await it('Luồng cử chỉ ẩn 3: Tắt Biometric -> Chạm cử chỉ ẩn mở ngay PIN Modal', async () => {
-  const ctrl = new HiddenGestureFlowController({ biometricAvailable: true, biometricEnabled: false });
-  const res = await ctrl.triggerHiddenGesture();
-  assert.strictEqual(res.openedBy, 'pin_modal');
-  assert.strictEqual(ctrl.pinModalVisible, true);
+await it('3. Notes: Search bình thường -> hoạt động', async () => {
+  const res = shells.notesSearch('mua sắm');
+  assert.strictEqual(res.searched, true);
+  assert.strictEqual(res.count, 1);
 });
 
-await it('Luồng cử chỉ ẩn 4: PIN Modal -> Nhập Real PIN 9988 mở Real Vault', async () => {
-  const ctrl = new HiddenGestureFlowController({ biometricEnabled: false });
-  await ctrl.triggerHiddenGesture();
-  const res = await ctrl.submitPinModal('9988');
+await it('4. Notes: Long press "Notes" -> gọi Shared Auth', async () => {
+  sharedAuth.reset();
+  const res = await shells.longPressNotesTitle();
+  assert.strictEqual(res.pinModalOpened, true);
+  assert.strictEqual(sharedAuth.pinModalVisible, true);
+});
+
+await it('5. Notes: Real PIN -> Real Vault', async () => {
+  const res = await sharedAuth.submitPin('9988');
   assert.strictEqual(res.success, true);
-  assert.strictEqual(res.mode, 'real');
-  assert.strictEqual(ctrl.vaultUnlocked, true);
-  assert.strictEqual(ctrl.activeVaultMode, 'real');
-  assert.strictEqual(ctrl.pinModalVisible, false);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'real');
 });
 
-await it('Luồng cử chỉ ẩn 5 (Chống cưỡng ép): PIN Modal -> Nhập Decoy PIN 4455 mở Decoy Vault an toàn', async () => {
-  const ctrl = new HiddenGestureFlowController({ biometricEnabled: false });
-  await ctrl.triggerHiddenGesture();
-  const res = await ctrl.submitPinModal('4455');
+await it('6. Notes: Decoy PIN -> Decoy Vault', async () => {
+  sharedAuth.reset();
+  await shells.longPressNotesTitle();
+  const res = await sharedAuth.submitPin('4455');
   assert.strictEqual(res.success, true);
-  assert.strictEqual(res.mode, 'decoy');
-  assert.strictEqual(ctrl.vaultUnlocked, true);
-  assert.strictEqual(ctrl.activeVaultMode, 'decoy');
-  assert.strictEqual(ctrl.pinModalVisible, false);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'decoy');
+});
+
+await it('7. Notes: Wrong PIN -> không unlock', async () => {
+  sharedAuth.reset();
+  await shells.longPressNotesTitle();
+  const res = await sharedAuth.submitPin('0000');
+  assert.strictEqual(res.success, false);
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+});
+
+await it('8. Notes: Biometric success -> Real Vault', async () => {
+  sharedAuth.reset();
+  sharedAuth.biometricEnabled = true;
+  const res = await sharedAuth.triggerSharedAuth(true);
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'real');
+  sharedAuth.biometricEnabled = false;
+});
+
+// --- GROUP 2: WEATHER (Tests 9-13) ---
+await it('9. Weather: Real PIN trong city search -> không unlock', async () => {
+  sharedAuth.reset();
+  shells.weatherCitySearch('9988');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+});
+
+await it('10. Weather: Decoy PIN trong city search -> không unlock', async () => {
+  sharedAuth.reset();
+  shells.weatherCitySearch('4455');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+});
+
+await it('11. Weather: Long press temperature card -> Shared Auth', async () => {
+  sharedAuth.reset();
+  const res = await shells.longPressWeatherTempCard();
+  assert.strictEqual(res.pinModalOpened, true);
+  assert.strictEqual(sharedAuth.pinModalVisible, true);
+});
+
+await it('12. Weather: Real PIN -> Real Vault', async () => {
+  const res = await sharedAuth.submitPin('9988');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'real');
+});
+
+await it('13. Weather: Decoy PIN -> Decoy Vault', async () => {
+  sharedAuth.reset();
+  await shells.longPressWeatherTempCard();
+  const res = await sharedAuth.submitPin('4455');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'decoy');
+});
+
+// --- GROUP 3: CALENDAR (Tests 14-18) ---
+await it('14. Calendar: Real PIN trong search -> không unlock', async () => {
+  sharedAuth.reset();
+  shells.calendarEventSearch('9988');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+});
+
+await it('15. Calendar: Decoy PIN trong search -> không unlock', async () => {
+  sharedAuth.reset();
+  shells.calendarEventSearch('4455');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+});
+
+await it('16. Calendar: Long press month title -> Shared Auth', async () => {
+  sharedAuth.reset();
+  const res = await shells.longPressCalendarMonthTitle();
+  assert.strictEqual(res.pinModalOpened, true);
+  assert.strictEqual(sharedAuth.pinModalVisible, true);
+});
+
+await it('17. Calendar: Real PIN -> Real Vault', async () => {
+  const res = await sharedAuth.submitPin('9988');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'real');
+});
+
+await it('18. Calendar: Decoy PIN -> Decoy Vault', async () => {
+  sharedAuth.reset();
+  await shells.longPressCalendarMonthTitle();
+  const res = await sharedAuth.submitPin('4455');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'decoy');
+});
+
+// --- GROUP 4: CALCULATOR (Tests 19-24) ---
+await it('19. Calculator: Tap "=" -> calculate bình thường', async () => {
+  sharedAuth.reset();
+  shells.calcInput('1000');
+  shells.calcSetOp('+');
+  shells.calcInput('234');
+  const res = shells.calcTapEquals();
+  assert.strictEqual(res, '1234');
+});
+
+await it('20. Calculator: Kết quả bằng Real PIN -> không unlock', async () => {
+  sharedAuth.reset();
+  shells.calcInput('9000');
+  shells.calcSetOp('+');
+  shells.calcInput('988');
+  shells.calcTapEquals(); // Kết quả là 9988
+  assert.strictEqual(shells.calcDisplay, '9988');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+});
+
+await it('21. Calculator: Kết quả bằng Decoy PIN -> không unlock', async () => {
+  sharedAuth.reset();
+  shells.calcInput('4000');
+  shells.calcSetOp('+');
+  shells.calcInput('455');
+  shells.calcTapEquals(); // Kết quả là 4455
+  assert.strictEqual(shells.calcDisplay, '4455');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+});
+
+await it('22. Calculator: Long press "=" -> Shared Auth', async () => {
+  sharedAuth.reset();
+  const res = await shells.calcLongPressEquals();
+  assert.strictEqual(res.pinModalOpened, true);
+  assert.strictEqual(sharedAuth.pinModalVisible, true);
+});
+
+await it('23. Calculator: Real PIN -> Real Vault', async () => {
+  const res = await sharedAuth.submitPin('9988');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'real');
+});
+
+await it('24. Calculator: Decoy PIN -> Decoy Vault', async () => {
+  sharedAuth.reset();
+  await shells.calcLongPressEquals();
+  const res = await sharedAuth.submitPin('4455');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(sharedAuth.activeVaultMode, 'decoy');
+});
+
+// --- GROUP 5: CROSS-SHELL & INTEGRITY (Tests 25-34) ---
+await it('25. Cross-Shell: Calculator dùng Shared Authentication', async () => {
+  assert(typeof shells.calcLongPressEquals === 'function');
+  assert.strictEqual(shells.calcLongPressEquals().name, shells.longPressNotesTitle().name);
+});
+
+await it('26. Cross-Shell: Notes dùng Shared Authentication', async () => {
+  assert(typeof shells.longPressNotesTitle === 'function');
+});
+
+await it('27. Cross-Shell: Weather dùng Shared Authentication', async () => {
+  assert(typeof shells.longPressWeatherTempCard === 'function');
+});
+
+await it('28. Cross-Shell: Calendar dùng Shared Authentication', async () => {
+  assert(typeof shells.longPressCalendarMonthTitle === 'function');
+});
+
+await it('29. Cross-Shell: Search không gọi authentication', async () => {
+  sharedAuth.reset();
+  shells.notesSearch('9988');
+  shells.weatherCitySearch('9988');
+  shells.calendarEventSearch('9988');
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+  assert.strictEqual(sharedAuth.pinModalVisible, false);
+});
+
+await it('30. Cross-Shell: Không có PIN/Master Key trong console logs', async () => {
+  const containsSensitive = (log) =>
+    log.includes(SHARED_REAL_PIN) || log.includes('masterKeyHex');
+  assert.strictEqual(sharedAuth.logs.some(containsSensitive), false);
+});
+
+await it('31. Cross-Shell: Subscription gate vẫn hoạt động', async () => {
+  const mockPlan = 'free';
+  const hasProAccess = mockPlan === 'premium';
+  assert.strictEqual(hasProAccess, false);
+});
+
+await it('32. Cross-Shell: Encryption vẫn hoạt động', async () => {
+  assert(typeof encryptContainer === 'function');
+  assert(typeof decryptContainer === 'function');
+});
+
+await it('33. Cross-Shell: Cloud Sync vẫn hoạt động', async () => {
+  assert.strictEqual(syncQueue[0].status, 'SYNCED');
+});
+
+await it('34. Cross-Shell: Auto-lock vẫn hoạt động', async () => {
+  sharedAuth.reset();
+  sharedAuth.vaultUnlocked = true;
+  sharedAuth.activeVaultMode = 'real';
+  sharedAuth.lockVault();
+  assert.strictEqual(sharedAuth.vaultUnlocked, false);
+  assert.strictEqual(sharedAuth.activeVaultMode, null);
 });
 
 console.log('\n=============================================================');

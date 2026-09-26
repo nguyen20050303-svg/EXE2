@@ -198,27 +198,6 @@ function MainAppContent() {
     setVisiblePublicNotes(filtered);
   };
 
-  const handleSearchSubmit = async () => {
-    const trimmed = searchQuery.trim();
-    if (trimmed.toLowerCase() === '//settings' || trimmed.toLowerCase() === '*#settings') {
-      setSearchQuery('');
-      const notes = await getPublicNotes();
-      setVisiblePublicNotes(notes);
-      setCurrentScreen('hidden-settings');
-      return;
-    }
-
-    if (trimmed.length >= 4) {
-      const unlockMode = await attemptUnlock(trimmed);
-      if (unlockMode !== 'none') {
-        setSearchQuery('');
-        const notes = await getPublicNotes();
-        setVisiblePublicNotes(notes);
-        return;
-      }
-    }
-  };
-
   const handleCreatePublicNote = async (note) => {
     await createPublicNote(note);
     const notes = await getPublicNotes();
@@ -231,7 +210,7 @@ function MainAppContent() {
     setCurrentScreen('public-detail');
   };
 
-  const handleHiddenGesture = async () => {
+  const handleSharedAuth = async () => {
     // 1. Biometric nếu bật
     if (biometricAvailable && biometricEnabled) {
       try {
@@ -248,7 +227,8 @@ function MainAppContent() {
     setPinModalVisible(true);
   };
 
-  const handleBiometricUnlock = handleHiddenGesture;
+  const handleBiometricUnlock = handleSharedAuth;
+  const handleHiddenGesture = handleSharedAuth;
 
   const handleQuickEscape = () => {
     lockVault();
@@ -486,8 +466,9 @@ function MainAppContent() {
         <CalculatorScreen
           onAttemptUnlock={attemptUnlock}
           biometricEnabled={biometricEnabled}
-          onBiometricUnlock={handleHiddenGesture}
-          onHiddenGesture={handleHiddenGesture}
+          onBiometricUnlock={handleSharedAuth}
+          onHiddenGesture={handleSharedAuth}
+          onSharedAuth={handleSharedAuth}
           onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
         />
       );
@@ -496,8 +477,9 @@ function MainAppContent() {
         <WeatherScreen
           onAttemptUnlock={attemptUnlock}
           biometricEnabled={biometricEnabled}
-          onBiometricUnlock={handleHiddenGesture}
-          onHiddenGesture={handleHiddenGesture}
+          onBiometricUnlock={handleSharedAuth}
+          onHiddenGesture={handleSharedAuth}
+          onSharedAuth={handleSharedAuth}
           onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
         />
       );
@@ -506,8 +488,9 @@ function MainAppContent() {
         <CalendarScreen
           onAttemptUnlock={attemptUnlock}
           biometricEnabled={biometricEnabled}
-          onBiometricUnlock={handleHiddenGesture}
-          onHiddenGesture={handleHiddenGesture}
+          onBiometricUnlock={handleSharedAuth}
+          onHiddenGesture={handleSharedAuth}
+          onSharedAuth={handleSharedAuth}
           onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
         />
       );
@@ -520,12 +503,12 @@ function MainAppContent() {
             loading={loadingPublicNotes}
             searchQuery={searchQuery}
             onChangeSearchQuery={handleSearchChange}
-            onSubmitSearch={handleSearchSubmit}
             onSelectNote={handleSelectNote}
             onCreateNote={handleCreatePublicNote}
             biometricEnabled={biometricEnabled}
-            onBiometricUnlock={handleHiddenGesture}
-            onHiddenGesture={handleHiddenGesture}
+            onBiometricUnlock={handleSharedAuth}
+            onHiddenGesture={handleSharedAuth}
+            onSharedAuth={handleSharedAuth}
             onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
           />
         </>

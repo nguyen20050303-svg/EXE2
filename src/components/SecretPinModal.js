@@ -63,10 +63,10 @@ export default function SecretPinModal({ visible, onClose, onAttemptUnlock }) {
       } catch {
         // Safe fallback
       }
-      setErrorMsg('Mã bảo mật không chính xác');
+      setErrorMsg('Mã PIN không chính xác');
       setPin('');
     } catch {
-      setErrorMsg('Không thể mở khóa. Vui lòng thử lại.');
+      setErrorMsg('Không thể xác thực. Vui lòng thử lại.');
       setPin('');
     } finally {
       setLoading(false);
@@ -82,10 +82,10 @@ export default function SecretPinModal({ visible, onClose, onAttemptUnlock }) {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.lockIconContainer}>
-              <Text style={styles.lockIcon}>🔒</Text>
+              <Text style={styles.lockIcon}>🔐</Text>
             </View>
-            <Text style={styles.title}>Xác thực mã bảo mật</Text>
-            <Text style={styles.subtitle}>Nhập mã bí mật để truy cập kho dữ liệu</Text>
+            <Text style={styles.title}>Xác thực</Text>
+            <Text style={styles.subtitle}>Nhập mã PIN để tiếp tục</Text>
           </View>
 
           {/* Dots Indicator */}
@@ -172,7 +172,7 @@ export default function SecretPinModal({ visible, onClose, onAttemptUnlock }) {
             activeOpacity={0.8}
           >
             <Text style={styles.confirmBtnText}>
-              {loading ? 'Đang kiểm tra...' : 'Xác nhận mở kho'}
+              {loading ? 'Đang kiểm tra...' : 'Xác nhận'}
             </Text>
           </TouchableOpacity>
         </View>

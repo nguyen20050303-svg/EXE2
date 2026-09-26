@@ -119,6 +119,7 @@ export default function WeatherScreen({
   biometricEnabled,
   onBiometricUnlock,
   onHiddenGesture,
+  onSharedAuth,
   onOpenHiddenSettings,
 }) {
   const [selectedCityIndex, setSelectedCityIndex] = useState(0);
@@ -130,45 +131,13 @@ export default function WeatherScreen({
   const handleSearchChange = (text) => {
     setSearchQuery(text);
 
+    // City search hoàn toàn "Blind" đối với Vault
     const trimmed = text.trim().toLowerCase();
-    // 1. Kích hoạt vào cài đặt ẩn qua mã lệnh
-    if (trimmed === '//settings' || trimmed === '*#settings') {
-      setSearchQuery('');
-      setSearchOpen(false);
-      if (onOpenHiddenSettings) {
-        onOpenHiddenSettings();
-      }
-      return;
-    }
-
-    // 2. Tìm tên thành phố thực tế theo thời gian thực (KHÔNG kích hoạt mở két khi đang gõ)
     const matchIndex = CITIES_DATA.findIndex((c) =>
       c.name.toLowerCase().includes(trimmed)
     );
     if (matchIndex !== -1 && trimmed.length >= 2) {
       setSelectedCityIndex(matchIndex);
-    }
-  };
-
-  const handleSearchSubmit = async () => {
-    const trimmed = searchQuery.trim();
-    if (trimmed.toLowerCase() === '//settings' || trimmed.toLowerCase() === '*#settings') {
-      setSearchQuery('');
-      setSearchOpen(false);
-      if (onOpenHiddenSettings) {
-        onOpenHiddenSettings();
-      }
-      return;
-    }
-
-    // Chỉ kiểm tra mở két khi người dùng chủ động nhấn Search/Enter
-    if (onAttemptUnlock && trimmed.length >= 4) {
-      const mode = await onAttemptUnlock(trimmed);
-      if (mode !== 'none') {
-        setSearchQuery('');
-        setSearchOpen(false);
-        return;
-      }
     }
   };
 
@@ -212,11 +181,9 @@ export default function WeatherScreen({
             placeholderTextColor="#8892B0"
             value={searchQuery}
             onChangeText={handleSearchChange}
-            onSubmitEditing={handleSearchSubmit}
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
-            secureTextEntry={/^\d{4,}$/.test(searchQuery)}
             autoFocus
           />
           {searchQuery.length > 0 ? (
@@ -235,9 +202,8 @@ export default function WeatherScreen({
         {/* Main Temperature & Condition Card */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={onHiddenGesture || onBiometricUnlock}
-          onLongPress={onOpenHiddenSettings}
-          delayLongPress={2000}
+          onLongPress={onSharedAuth || onHiddenGesture || onBiometricUnlock}
+          delayLongPress={1500}
           style={styles.heroCard}
         >
           <Text style={styles.weatherHeroIcon}>{currentCity.icon}</Text>

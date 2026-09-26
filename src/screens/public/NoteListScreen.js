@@ -17,12 +17,12 @@ export default function NoteListScreen({
   loading,
   searchQuery,
   onChangeSearchQuery,
-  onSubmitSearch,
   onSelectNote,
   onCreateNote,
   biometricEnabled,
   onBiometricUnlock,
   onHiddenGesture,
+  onSharedAuth,
   onOpenHiddenSettings,
 }) {
   const [composerVisible, setComposerVisible] = useState(false);
@@ -37,14 +37,7 @@ export default function NoteListScreen({
   }, [notes.length]);
 
   const handleSearchText = (text) => {
-    const trimmed = text.trim().toLowerCase();
-    if (trimmed === '//settings' || trimmed === '*#settings') {
-      onChangeSearchQuery('');
-      if (onOpenHiddenSettings) {
-        onOpenHiddenSettings();
-      }
-      return;
-    }
+    // Search hoàn toàn "Blind" đối với Vault và Settings
     onChangeSearchQuery(text);
   };
 
@@ -61,18 +54,27 @@ export default function NoteListScreen({
     setComposerVisible(false);
   };
 
+  const handleAuthTrigger = onSharedAuth || onHiddenGesture || onBiometricUnlock;
+
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onHiddenGesture || onBiometricUnlock}
-          onLongPress={onOpenHiddenSettings}
-          delayLongPress={2000}
-        >
-          <Text style={styles.title}>Notes</Text>
-          <Text style={styles.subtitle}>{noteCountLabel}</Text>
-        </TouchableOpacity>
+        <View>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={handleAuthTrigger}
+            delayLongPress={1500}
+          >
+            <Text style={styles.title}>Notes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={onOpenHiddenSettings}
+            delayLongPress={2000}
+          >
+            <Text style={styles.subtitle}>{noteCountLabel}</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.addButton} onPress={() => setComposerVisible(true)}>
@@ -89,11 +91,9 @@ export default function NoteListScreen({
           placeholderTextColor="#8E8E93"
           value={searchQuery}
           onChangeText={handleSearchText}
-          onSubmitEditing={onSubmitSearch}
-          returnKeyType="search"
           autoCapitalize="none"
           autoCorrect={false}
-          secureTextEntry={/^\d{4,}$/.test(searchQuery)}
+          returnKeyType="search"
         />
       </View>
 
