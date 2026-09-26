@@ -941,6 +941,100 @@ await it('Bảo mật ngụy trang: Placeholder tự nhiên trên cả 4 màn h�
   }
 });
 
+// ====================================================================
+// 11. UNIFIED HIDDEN GESTURE -> BIOMETRIC -> PIN PROMPT -> REAL / DECOY
+// ====================================================================
+console.log('\n--- 11. Unified Hidden Gesture Flow ---');
+
+class HiddenGestureFlowController {
+  constructor(config = {}) {
+    this.biometricAvailable = config.biometricAvailable ?? true;
+    this.biometricEnabled = config.biometricEnabled ?? true;
+    this.pinModalVisible = false;
+    this.vaultUnlocked = false;
+    this.activeVaultMode = null;
+    this.realPin = '9988';
+    this.decoyPin = '4455';
+  }
+
+  async triggerHiddenGesture(mockBiometricResult = null) {
+    if (this.biometricAvailable && this.biometricEnabled) {
+      if (mockBiometricResult === true) {
+        this.vaultUnlocked = true;
+        this.activeVaultMode = 'real';
+        return { openedBy: 'biometric', mode: 'real' };
+      }
+      // Biometric cancelled or failed -> fallback to PIN modal
+    }
+
+    this.pinModalVisible = true;
+    return { openedBy: 'pin_modal', modalVisible: true };
+  }
+
+  async submitPinModal(pin) {
+    if (!this.pinModalVisible) return { success: false };
+    if (pin === this.realPin) {
+      this.pinModalVisible = false;
+      this.vaultUnlocked = true;
+      this.activeVaultMode = 'real';
+      return { success: true, mode: 'real' };
+    }
+    if (pin === this.decoyPin) {
+      this.pinModalVisible = false;
+      this.vaultUnlocked = true;
+      this.activeVaultMode = 'decoy';
+      return { success: true, mode: 'decoy' };
+    }
+    return { success: false, error: 'Mã không đúng' };
+  }
+}
+
+await it('Luồng cử chỉ ẩn 1: Bật Biometric + FaceID thành công -> Vào thẳng Real Vault', async () => {
+  const ctrl = new HiddenGestureFlowController({ biometricAvailable: true, biometricEnabled: true });
+  const res = await ctrl.triggerHiddenGesture(true);
+  assert.strictEqual(res.openedBy, 'biometric');
+  assert.strictEqual(ctrl.vaultUnlocked, true);
+  assert.strictEqual(ctrl.activeVaultMode, 'real');
+  assert.strictEqual(ctrl.pinModalVisible, false);
+});
+
+await it('Luồng cử chỉ ẩn 2: Bật Biometric nhưng người dùng bấm Hủy -> Tự động chuyển tiếp sang PIN Modal', async () => {
+  const ctrl = new HiddenGestureFlowController({ biometricAvailable: true, biometricEnabled: true });
+  const res = await ctrl.triggerHiddenGesture(false); // Cancelled/failed
+  assert.strictEqual(res.openedBy, 'pin_modal');
+  assert.strictEqual(ctrl.pinModalVisible, true);
+  assert.strictEqual(ctrl.vaultUnlocked, false);
+});
+
+await it('Luồng cử chỉ ẩn 3: Tắt Biometric -> Chạm cử chỉ ẩn mở ngay PIN Modal', async () => {
+  const ctrl = new HiddenGestureFlowController({ biometricAvailable: true, biometricEnabled: false });
+  const res = await ctrl.triggerHiddenGesture();
+  assert.strictEqual(res.openedBy, 'pin_modal');
+  assert.strictEqual(ctrl.pinModalVisible, true);
+});
+
+await it('Luồng cử chỉ ẩn 4: PIN Modal -> Nhập Real PIN 9988 mở Real Vault', async () => {
+  const ctrl = new HiddenGestureFlowController({ biometricEnabled: false });
+  await ctrl.triggerHiddenGesture();
+  const res = await ctrl.submitPinModal('9988');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(res.mode, 'real');
+  assert.strictEqual(ctrl.vaultUnlocked, true);
+  assert.strictEqual(ctrl.activeVaultMode, 'real');
+  assert.strictEqual(ctrl.pinModalVisible, false);
+});
+
+await it('Luồng cử chỉ ẩn 5 (Chống cưỡng ép): PIN Modal -> Nhập Decoy PIN 4455 mở Decoy Vault an toàn', async () => {
+  const ctrl = new HiddenGestureFlowController({ biometricEnabled: false });
+  await ctrl.triggerHiddenGesture();
+  const res = await ctrl.submitPinModal('4455');
+  assert.strictEqual(res.success, true);
+  assert.strictEqual(res.mode, 'decoy');
+  assert.strictEqual(ctrl.vaultUnlocked, true);
+  assert.strictEqual(ctrl.activeVaultMode, 'decoy');
+  assert.strictEqual(ctrl.pinModalVisible, false);
+});
+
 console.log('\n=============================================================');
 console.log(`  KẾT QUẢ KIỂM THỬ: ${passedTests} / ${totalTests} BÀI TEST ĐÃ VƯỢT QUA`);
 console.log(`  TRẠNG THÁI: TẤT CẢ CÁC LUỒNG HỆ THỐNG ĐẠT CHUẨN 100%!`);

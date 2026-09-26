@@ -22,6 +22,7 @@ export default function NoteListScreen({
   onCreateNote,
   biometricEnabled,
   onBiometricUnlock,
+  onHiddenGesture,
   onOpenHiddenSettings,
 }) {
   const [composerVisible, setComposerVisible] = useState(false);
@@ -65,7 +66,7 @@ export default function NoteListScreen({
       <View style={styles.headerRow}>
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={biometricEnabled ? onBiometricUnlock : undefined}
+          onPress={onHiddenGesture || onBiometricUnlock}
           onLongPress={onOpenHiddenSettings}
           delayLongPress={2000}
         >

@@ -12,6 +12,7 @@ export default function CalculatorScreen({
   onAttemptUnlock,
   biometricEnabled,
   onBiometricUnlock,
+  onHiddenGesture,
   onOpenHiddenSettings,
 }) {
   const [displayValue, setDisplayValue] = useState('0');
@@ -161,15 +162,13 @@ export default function CalculatorScreen({
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Secret Biometric Trigger: Vùng chạm tàng hình ở góc trên (không để lại icon lạ) */}
+      {/* Secret Biometric / Hidden Gesture Trigger: Vùng chạm tàng hình ở góc trên (không để lại icon lạ) */}
       <View style={styles.topBar}>
-        {biometricEnabled ? (
-          <TouchableOpacity
-            style={styles.invisibleBioArea}
-            onPress={onBiometricUnlock}
-            activeOpacity={1}
-          />
-        ) : null}
+        <TouchableOpacity
+          style={styles.invisibleBioArea}
+          onPress={onHiddenGesture || onBiometricUnlock}
+          activeOpacity={1}
+        />
       </View>
 
       {/* Màn hình hiển thị số - Long-press 2s để mở Cài đặt ẩn */}

@@ -53,6 +53,7 @@ import {
   importVideoToVault,
   saveAudioToVault,
 } from './src/services/fileSystem';
+import SecretPinModal from './src/components/SecretPinModal';
 
 function LoadingScreen() {
   return (
@@ -91,6 +92,7 @@ function MainAppContent() {
   const [visiblePublicNotes, setVisiblePublicNotes] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingPublicNotes, setLoadingPublicNotes] = useState(true);
+  const [pinModalVisible, setPinModalVisible] = useState(false);
 
   useEffect(() => {
     if (!currentUser) {
@@ -229,13 +231,24 @@ function MainAppContent() {
     setCurrentScreen('public-detail');
   };
 
-  const handleBiometricUnlock = async () => {
-    try {
-      await authenticateBiometric();
-    } catch {
-      // Silent fail to preserve stealth
+  const handleHiddenGesture = async () => {
+    // 1. Biometric nếu bật
+    if (biometricAvailable && biometricEnabled) {
+      try {
+        const success = await authenticateBiometric();
+        if (success) {
+          return;
+        }
+      } catch (err) {
+        console.log('Biometric error/cancel, fallback to PIN:', err);
+      }
     }
+
+    // 2. PIN nếu cần (Biometric không bật hoặc người dùng bấm Hủy / thất bại)
+    setPinModalVisible(true);
   };
+
+  const handleBiometricUnlock = handleHiddenGesture;
 
   const handleQuickEscape = () => {
     lockVault();
@@ -466,53 +479,66 @@ function MainAppContent() {
       );
     }
 
+    let publicComponent = null;
+
     if (disguiseType === 'calculator') {
-      return (
+      publicComponent = (
         <CalculatorScreen
           onAttemptUnlock={attemptUnlock}
           biometricEnabled={biometricEnabled}
-          onBiometricUnlock={handleBiometricUnlock}
+          onBiometricUnlock={handleHiddenGesture}
+          onHiddenGesture={handleHiddenGesture}
           onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
         />
       );
-    }
-
-    if (disguiseType === 'weather') {
-      return (
+    } else if (disguiseType === 'weather') {
+      publicComponent = (
         <WeatherScreen
           onAttemptUnlock={attemptUnlock}
           biometricEnabled={biometricEnabled}
-          onBiometricUnlock={handleBiometricUnlock}
+          onBiometricUnlock={handleHiddenGesture}
+          onHiddenGesture={handleHiddenGesture}
           onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
         />
       );
-    }
-
-    if (disguiseType === 'calendar') {
-      return (
+    } else if (disguiseType === 'calendar') {
+      publicComponent = (
         <CalendarScreen
           onAttemptUnlock={attemptUnlock}
           biometricEnabled={biometricEnabled}
-          onBiometricUnlock={handleBiometricUnlock}
+          onBiometricUnlock={handleHiddenGesture}
+          onHiddenGesture={handleHiddenGesture}
           onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
         />
+      );
+    } else {
+      publicComponent = (
+        <>
+          <StatusBar barStyle="dark-content" />
+          <NoteListScreen
+            notes={visiblePublicNotes}
+            loading={loadingPublicNotes}
+            searchQuery={searchQuery}
+            onChangeSearchQuery={handleSearchChange}
+            onSubmitSearch={handleSearchSubmit}
+            onSelectNote={handleSelectNote}
+            onCreateNote={handleCreatePublicNote}
+            biometricEnabled={biometricEnabled}
+            onBiometricUnlock={handleHiddenGesture}
+            onHiddenGesture={handleHiddenGesture}
+            onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
+          />
+        </>
       );
     }
 
     return (
       <>
-        <StatusBar barStyle="dark-content" />
-        <NoteListScreen
-          notes={visiblePublicNotes}
-          loading={loadingPublicNotes}
-          searchQuery={searchQuery}
-          onChangeSearchQuery={handleSearchChange}
-          onSubmitSearch={handleSearchSubmit}
-          onSelectNote={handleSelectNote}
-          onCreateNote={handleCreatePublicNote}
-          biometricEnabled={biometricEnabled}
-          onBiometricUnlock={handleBiometricUnlock}
-          onOpenHiddenSettings={() => setCurrentScreen('hidden-settings')}
+        {publicComponent}
+        <SecretPinModal
+          visible={pinModalVisible}
+          onClose={() => setPinModalVisible(false)}
+          onAttemptUnlock={attemptUnlock}
         />
       </>
     );

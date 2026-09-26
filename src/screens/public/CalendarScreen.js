@@ -75,6 +75,7 @@ export default function CalendarScreen({
   onAttemptUnlock,
   biometricEnabled,
   onBiometricUnlock,
+  onHiddenGesture,
   onOpenHiddenSettings,
 }) {
   const today = useMemo(() => new Date(), []);
@@ -238,7 +239,7 @@ export default function CalendarScreen({
       <View style={styles.header}>
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={biometricEnabled ? onBiometricUnlock : undefined}
+          onPress={onHiddenGesture || onBiometricUnlock}
           onLongPress={onOpenHiddenSettings}
           delayLongPress={2000}
         >

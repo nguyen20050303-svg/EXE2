@@ -118,6 +118,7 @@ export default function WeatherScreen({
   onAttemptUnlock,
   biometricEnabled,
   onBiometricUnlock,
+  onHiddenGesture,
   onOpenHiddenSettings,
 }) {
   const [selectedCityIndex, setSelectedCityIndex] = useState(0);
@@ -234,7 +235,7 @@ export default function WeatherScreen({
         {/* Main Temperature & Condition Card */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={biometricEnabled ? onBiometricUnlock : undefined}
+          onPress={onHiddenGesture || onBiometricUnlock}
           onLongPress={onOpenHiddenSettings}
           delayLongPress={2000}
           style={styles.heroCard}
