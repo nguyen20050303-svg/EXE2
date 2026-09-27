@@ -60,22 +60,34 @@ Google Play **bắt buộc** phải có 1 URL công khai chứa Chính sách b�
 
 ## 4. Hướng dẫn khai báo Google Play Console
 
-### A. Quyền truy cập ứng dụng (App Access)
-- Vì Hidder có cơ chế ngụy trang và bảo vệ bằng mật khẩu, bạn cần cung cấp thông tin cho người kiểm duyệt của Google:
-  - **Tài khoản đăng nhập test:** Tạo sẵn 1 tài khoản (ví dụ: `google-review@hidder.app` / `TestPass123!`).
-  - **Hướng dẫn mở két:**
-    > "Ứng dụng ngụy trang dưới dạng ứng dụng Ghi chú / Máy tính. Để mở két bảo mật, tại thanh tìm kiếm ghi chú (hoặc màn hình máy tính), hãy nhập mã PIN: `9988` (rồi bấm nút `=` nếu ở máy tính). Két bảo mật sẽ mở ra."
+### A. Quyền truy cập ứng dụng (App Access - BẮT BUỘC KHAI BÁO)
+> ⚠️ **LƯU Ý CỰC KỲ QUAN TRỌNG:** Nếu không khai báo cách mở két cho đội ngũ kiểm duyệt của Google, ứng dụng sẽ bị từ chối (Reject) ngay vì lỗi "Không truy cập được tính năng / Broken functionality".
+
+Cung cấp thông tin sau cho kiểm duyệt viên Google trong phần **App access** > **All or some functionality is restricted**:
+- **Tài khoản test đã tạo sẵn:** 
+  - Email: `google-review@hidder.app`
+  - Mật khẩu: `ReviewerPass123!`
+- **Hướng dẫn mở két (Copy đoạn này dán vào hướng dẫn):**
+  > "This application provides a stealth privacy vault disguised as utility tools. To access the secure vault interface for review:
+  > 1. If using Calculator shell: Long-press the '=' button for 1.2 seconds. A prompt will appear. Enter Real PIN: 9988 to open the Private Vault (or Decoy PIN: 1122 to test Decoy mode).
+  > 2. If using Notes shell: Long-press the yellow 'Notes' title on top for 1.5 seconds. Enter Real PIN: 9988.
+  > 3. If using Weather shell: Long-press the central temperature card for 1.5 seconds. Enter Real PIN: 9988.
+  > 4. If using Calendar shell: Long-press the Month/Year header for 1.5 seconds. Enter Real PIN: 9988."
+
+---
 
 ### B. An toàn dữ liệu (Data Safety Questionnaire)
 Khi trả lời bảng câu hỏi về dữ liệu:
 - **Dữ liệu có được thu thập không?** -> Chọn **Có (Yes)**.
-- **Dữ liệu có được mã hóa khi truyền tải không?** -> Chọn **Có (Yes, all user data is encrypted in transit)**.
-- **Có cơ chế yêu cầu xóa dữ liệu không?** -> Chọn **Có (Yes, users can delete their data and account)**.
+- **Dữ liệu có được mã hóa khi truyền tải không?** -> Chọn **Có (Yes, all user data is encrypted in transit via HTTPS & AES-256-GCM client-side)**.
+- **Có cơ chế yêu cầu xóa dữ liệu không?** -> Chọn **Có (Yes, users can delete their data directly in app and request account deletion via support email)**.
 - **Các loại dữ liệu thu thập:**
   1. **Personal info (Email address):** Mục đích: App functionality, Account management. Không chia sẻ bên thứ ba.
-  2. **Photos & Videos:** Người dùng chủ động tải lên, mã hóa đầu cuối.
-  3. **Audio recordings:** Voice memos, chỉ thu âm khi người dùng ấn nút.
+  2. **Photos & Videos:** Người dùng chủ động tải lên két, được mã hóa cục bộ.
+  3. **Audio recordings:** Voice memos, chỉ thu âm khi người dùng ấn nút ghi âm.
   4. **Files & Documents:** Tài liệu mật trong Document Vault.
+
+---
 
 ### C. Khán giả mục tiêu & Xếp hạng nội dung (Target Audience & Content Rating)
 - Độ tuổi: **13 tuổi trở lên (13+)** hoặc **18+**.
@@ -83,9 +95,22 @@ Khi trả lời bảng câu hỏi về dữ liệu:
 
 ---
 
-## 5. Đăng ký tài khoản Google Play Console
-- Phí đăng ký nhà phát triển của Google: **$25 USD (trả 1 lần duy nhất)** tại [play.google.com/console](https://play.google.com/console).
-- Chuẩn bị hình ảnh đồ họa:
+## 5. Quy Định Mới Của Google Play Cho Tài Khoản Cá Nhân (Closed Testing 20 Testers)
+
+> 💡 **Lưu ý quy định Google từ tháng 11/2023:** 
+> Nếu tài khoản Google Play Console là **tài khoản cá nhân mới tạo**, Google bắt buộc:
+> - Phải tạo một bản phát hành thử nghiệm đóng (**Closed Testing track**).
+> - Cần ít nhất **20 người tham gia thử nghiệm (testers)** chấp nhận tham gia (opt-in) và cài đặt app.
+> - Giữ trạng thái thử nghiệm liên tục trong **tối thiểu 14 ngày**.
+> - Sau 14 ngày, bạn mới có thể nhấn nút **"Apply for Production"** để đưa app lên CH Play công khai.
+
+---
+
+## 6. Đăng ký tài khoản & Chuẩn bị tài nguyên đồ họa
+
+- Phí đăng ký tài khoản Google Play Developer: **$25 USD (thanh toán 1 lần duy nhất qua thẻ Visa/Mastercard)** tại [play.google.com/console](https://play.google.com/console).
+- Bộ hình ảnh đồ họa bắt buộc tải lên Store Listing:
   - **App Icon:** 512 x 512 px (PNG 32-bit, không có nền trong suốt).
-  - **Đồ họa tính năng (Feature Graphic):** 1024 x 500 px (JPG hoặc PNG).
-  - **Ảnh chụp màn hình (Screenshots):** Tối thiểu 2 ảnh (tỷ lệ 16:9 hoặc 9:16).
+  - **Đồ họa tính năng (Feature Graphic):** 1024 x 500 px (JPG hoặc PNG, tỷ lệ 16:9).
+  - **Ảnh chụp màn hình điện thoại (Phone Screenshots):** Tối thiểu 2 ảnh, tối đa 8 ảnh (tỷ lệ 16:9 hoặc 9:16, độ phân giải tối thiểu 1080px).
+
