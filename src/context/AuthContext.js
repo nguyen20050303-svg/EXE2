@@ -353,7 +353,19 @@ export const AuthProvider = ({ children }) => {
         return { success: true }; // Trình duyệt sẽ tự động chuyển hướng
       }
 
-      const redirectUrl = makeRedirectUri();
+      let redirectUrl = makeRedirectUri({
+        scheme: 'hidder',
+      });
+
+      // Bắt lỗi triệt để: Nếu Expo Go ngoan cố tạo ra link Web Proxy (auth.expo.io) hoặc localhost
+      // Ta ép nó phải dùng đúng Link LAN Mobile App để ngắt trình duyệt.
+      if (Platform.OS !== 'web' && (redirectUrl.includes('auth.expo.io') || redirectUrl.includes('localhost'))) {
+        redirectUrl = 'exp://192.168.2.13:8081';
+      }
+
+      console.log("=== ĐANG TEST URL CHUYỂN HƯỚNG ===");
+      console.log("Redirect URL được tạo ra là:", redirectUrl);
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -367,12 +379,21 @@ export const AuthProvider = ({ children }) => {
       }
 
       const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+      console.log("WebBrowser result:", res);
 
       if (res.type === 'success' && res.url) {
-        const { error: sessionError } = await supabase.auth.getSessionFromUrl(res.url);
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSessionFromUrl(res.url);
+        
         if (sessionError) {
+          alert('Lỗi lấy session: ' + sessionError.message);
           return { success: false, error: sessionError.message };
         }
+        
+        if (!sessionData?.session) {
+          alert('Không tìm thấy session trong URL trả về!');
+          return { success: false, error: 'Không lấy được phiên đăng nhập.' };
+        }
+        
         return { success: true };
       }
 
