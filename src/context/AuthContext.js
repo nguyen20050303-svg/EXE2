@@ -7,6 +7,7 @@ import { secureDeleteItem, secureGetItem, secureSetItem } from '../services/secu
 import { supabase } from '../services/supabase';
 import { getOrInitSubscription, getCachedSubscription, evaluateAccess } from '../services/subscriptionService';
 import { getOrCreateUserMasterKey, clearActiveMasterKey } from '../services/crypto';
+import { syncAppIconWithDisguise } from '../services/appIcon';
 
 export const AuthContext = createContext(null);
 
@@ -120,6 +121,10 @@ export const AuthProvider = ({ children }) => {
       setIsSetupComplete(setupVal === 'true');
       setDisguiseType(disguiseVal || 'notes');
       setBiometricEnabled(bioVal === 'true');
+
+      if (setupVal === 'true' && disguiseVal) {
+        void syncAppIconWithDisguise(disguiseVal);
+      }
     } catch (err) {
       console.warn('Lỗi tải setup state cho user:', err);
       setIsSetupComplete(false);
@@ -261,6 +266,9 @@ export const AuthProvider = ({ children }) => {
       setBiometricEnabled(Boolean(enableBiometric));
       setDisguiseType(disguise || 'notes');
       setIsSetupComplete(true);
+
+      // Đồng bộ icon ứng dụng ngoài màn hình chính điện thoại
+      void syncAppIconWithDisguise(disguise || 'notes');
 
       return { success: true };
     } catch (error) {
@@ -427,6 +435,10 @@ export const AuthProvider = ({ children }) => {
       const userId = currentUser?.id;
       await setUserSecureItem('disguiseType', userId, type);
       setDisguiseType(type);
+
+      // Đồng bộ icon ứng dụng ngoài màn hình chính điện thoại
+      void syncAppIconWithDisguise(type);
+
       return true;
     } catch (err) {
       console.error('Lỗi đổi vỏ ngụy trang:', err);

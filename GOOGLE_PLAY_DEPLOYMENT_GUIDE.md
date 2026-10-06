@@ -11,7 +11,7 @@ Tài liệu này tổng hợp toàn bộ các bước, lệnh build và nội du
    - Bật `autoIncrement: true` để tự động tăng `versionCode` mỗi lần build.
 
 2. **Cấu hình `app.json` tuân thủ Google Play:**
-   - Đã gán `versionCode: 1` và `version: "1.0.0"`.
+   - Đã gán `versionCode: 4` và `version: "1.0.0"`.
    - Đặt `allowBackup: false` để bảo vệ két mã hóa không bị sao lưu lộ ra ngoài qua Google Drive Backup.
    - Tối ưu hóa quyền Android (`permissions`), loại bỏ các quyền truy cập tệp rộng bị Google siết chặt (`WRITE_EXTERNAL_STORAGE`), chỉ giữ các quyền cần thiết:
      - `android.permission.RECORD_AUDIO` (Ghi âm Voice Memos)
@@ -19,7 +19,16 @@ Tài liệu này tổng hợp toàn bộ các bước, lệnh build và nội du
      - `android.permission.USE_BIOMETRIC` & `USE_FINGERPRINT` (Mở khóa sinh trắc học)
      - `android.permission.INTERNET` (Đồng bộ Cloud & Thời tiết)
 
-3. **Chính sách quyền riêng tư (Privacy Policy):**
+3. **Cơ chế Đổi Icon & Tên Ứng Dụng Động (Dynamic App Icon & Launcher Camouflage):**
+   - Đã cấu hình plugin `plugins/withDisguiseIcons.js` cùng bộ 4 icon chuẩn 1024x1024 (`assets/disguise-*.png`).
+   - Tự động tạo các `<activity-alias>` trên Android với nhãn và icon tương ứng:
+     - Máy tính: Icon Calculator + tên **"Calculator"**
+     - Ghi chú: Icon Notes + tên **"Notes"**
+     - Thời tiết: Icon Weather + tên **"Weather"**
+     - Lịch: Icon Calendar + tên **"Calendar"**
+   - Khi người dùng hoàn tất setup hoặc đổi vỏ ngụy trang, app tự động đồng bộ icon ngoài màn hình chính Android (`syncAppIconWithDisguise`).
+
+4. **Chính sách quyền riêng tư (Privacy Policy):**
    - Đã tạo sẵn file web `privacy-policy.html` và markdown `PRIVACY_POLICY.md` đạt chuẩn Data Safety của Google Play.
    - Đã tích hợp nút xem Chính sách quyền riêng tư trực tiếp trong màn hình Tài khoản (`AccountScreen.js`).
 

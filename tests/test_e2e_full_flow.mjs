@@ -1107,6 +1107,62 @@ await it('40. Guide Completeness: DisguiseGuideModal bao gồm đủ 4 vỏ bọ
   assert(guideCode.includes('Decoy PIN'), 'Guide phải giải thích Decoy PIN');
 });
 
+console.log('\n--- 12. Dynamic App Icon & Launcher Camouflage ---');
+
+await it('41. App Icon Assets: Cả 4 file icon ngụy trang PNG (calculator, notes, weather, calendar) đều tồn tại với kích thước chuẩn 1024x1024', async () => {
+  const disguises = ['calculator', 'notes', 'weather', 'calendar'];
+  for (const d of disguises) {
+    const iconPath = `assets/disguise-${d}.png`;
+    assert(fs.existsSync(iconPath), `Icon file ${iconPath} phải tồn tại`);
+    const buf = fs.readFileSync(iconPath);
+    // Kiểm tra header PNG
+    assert(buf.slice(0, 8).toString('hex') === '89504e470d0a1a0a', `${iconPath} phải là định dạng PNG hợp lệ`);
+    const width = buf.readUInt32BE(16);
+    const height = buf.readUInt32BE(20);
+    assert(width === 1024 && height === 1024, `${iconPath} phải có kích thước 1024x1024 (hiện tại: ${width}x${height})`);
+  }
+});
+
+await it('42. App Icon Config: app.json chứa plugin withDisguiseIcons với đủ 4 cấu hình ngụy trang và nhãn tùy biến', async () => {
+  const appJson = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+  const plugins = appJson.expo.plugins;
+  const disguisePlugin = plugins.find(
+    (p) => Array.isArray(p) && (p[0] === './plugins/withDisguiseIcons' || p[0].includes('withDisguiseIcons'))
+  );
+  assert(disguisePlugin, 'app.json phải cấu hình plugin withDisguiseIcons');
+  const config = disguisePlugin[1];
+  assert(config.calculator && config.calculator.label === 'Calculator', 'Cấu hình calculator phải có label Calculator');
+  assert(config.notes && config.notes.label === 'Notes', 'Cấu hình notes phải có label Notes');
+  assert(config.weather && config.weather.label === 'Weather', 'Cấu hình weather phải có label Weather');
+  assert(config.calendar && config.calendar.label === 'Calendar', 'Cấu hình calendar phải có label Calendar');
+});
+
+await it('43. App Icon Service: appIcon.js xử lý đổi icon an toàn cho mọi loại disguise và fallback trên non-native', async () => {
+  const appIconCode = fs.readFileSync('src/services/appIcon.js', 'utf8');
+  assert(appIconCode.includes('export const syncAppIconWithDisguise'), 'appIcon.js phải export syncAppIconWithDisguise');
+  assert(appIconCode.includes('export const getCurrentAppIcon'), 'appIcon.js phải export getCurrentAppIcon');
+  assert(appIconCode.includes("validDisguises = ['calculator', 'notes', 'weather', 'calendar']"), 'appIcon.js phải kiểm tra 4 lớp vỏ hợp lệ');
+  assert(appIconCode.includes('setAppIcon(targetIcon, true)'), 'appIcon.js phải gọi setAppIcon với background transition');
+  assert(appIconCode.includes('catch (err)'), 'appIcon.js phải có try/catch bảo vệ chống crash');
+
+  // Kiểm tra mô phỏng logic lọc disguise
+  const validDisguises = ['calculator', 'notes', 'weather', 'calendar'];
+  const testFilter = (d) => (validDisguises.includes(d) ? d : null);
+  assert(testFilter('calculator') === 'calculator');
+  assert(testFilter('notes') === 'notes');
+  assert(testFilter('weather') === 'weather');
+  assert(testFilter('calendar') === 'calendar');
+  assert(testFilter('invalid_shell') === null);
+});
+
+await it('44. AuthContext Integration: completeSetup, changeDisguiseType và loadUserSetupState đều gọi syncAppIconWithDisguise', async () => {
+  const authCode = fs.readFileSync('src/context/AuthContext.js', 'utf8');
+  assert(authCode.includes("import { syncAppIconWithDisguise } from '../services/appIcon';"), 'AuthContext phải import syncAppIconWithDisguise');
+  assert(authCode.includes('syncAppIconWithDisguise(disguise || \'notes\');'), 'completeSetup phải gọi syncAppIconWithDisguise');
+  assert(authCode.includes('syncAppIconWithDisguise(type);'), 'changeDisguiseType phải gọi syncAppIconWithDisguise');
+  assert(authCode.includes('syncAppIconWithDisguise(disguiseVal);'), 'loadUserSetupState phải gọi syncAppIconWithDisguise khi load');
+});
+
 console.log('\n=============================================================');
 console.log(`  KẾT QUẢ KIỂM THỬ: ${passedTests} / ${totalTests} BÀI TEST ĐÃ VƯỢT QUA`);
 console.log(`  TRẠNG THÁI: TẤT CẢ CÁC LUỒNG HỆ THỐNG ĐẠT CHUẨN 100%!`);

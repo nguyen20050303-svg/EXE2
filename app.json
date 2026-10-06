@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.hidder.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
@@ -35,6 +35,43 @@
       ]
     },
     "plugins": [
+      [
+        "./plugins/withDisguiseIcons",
+        {
+          "calculator": {
+            "label": "Calculator",
+            "ios": "./assets/disguise-calculator.png",
+            "android": {
+              "foregroundImage": "./assets/disguise-calculator.png",
+              "backgroundColor": "#FFFFFF"
+            }
+          },
+          "notes": {
+            "label": "Notes",
+            "ios": "./assets/disguise-notes.png",
+            "android": {
+              "foregroundImage": "./assets/disguise-notes.png",
+              "backgroundColor": "#FFFFFF"
+            }
+          },
+          "weather": {
+            "label": "Weather",
+            "ios": "./assets/disguise-weather.png",
+            "android": {
+              "foregroundImage": "./assets/disguise-weather.png",
+              "backgroundColor": "#FFFFFF"
+            }
+          },
+          "calendar": {
+            "label": "Calendar",
+            "ios": "./assets/disguise-calendar.png",
+            "android": {
+              "foregroundImage": "./assets/disguise-calendar.png",
+              "backgroundColor": "#FFFFFF"
+            }
+          }
+        }
+      ],
       "expo-secure-store",
       "expo-status-bar",
       [
