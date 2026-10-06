@@ -71,7 +71,7 @@ export const trackEvent = async (eventName, params = {}, isDebug = false) => {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain', // Đổi thành text/plain để vượt qua lỗi CORS trên Web
       },
       body: JSON.stringify(payload),
     });

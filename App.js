@@ -4,7 +4,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { AuthContext, AuthProvider } from './src/context/AuthContext';
 import SetupWizard from './src/components/SetupWizard';
 import LoginScreen from './src/screens/auth/LoginScreen';
-import RegisterScreen from './src/screens/auth/RegisterScreen';
 import SubscriptionScreen from './src/screens/subscription/SubscriptionScreen';
 import NoteListScreen from './src/screens/public/NoteListScreen';
 import NoteDetailScreen from './src/screens/public/NoteDetailScreen';
@@ -85,7 +84,7 @@ function MainAppContent() {
     signOutUser,
   } = useContext(AuthContext);
 
-  const [authScreen, setAuthScreen] = useState('login'); // 'login' | 'register'
+
   const [currentScreen, setCurrentScreen] = useState('public-list');
   const [selectedNote, setSelectedNote] = useState(null);
   const [publicNotes, setPublicNotes] = useState([]);
@@ -94,11 +93,6 @@ function MainAppContent() {
   const [loadingPublicNotes, setLoadingPublicNotes] = useState(true);
   const [pinModalVisible, setPinModalVisible] = useState(false);
 
-  useEffect(() => {
-    if (!currentUser) {
-      setAuthScreen('login');
-    }
-  }, [currentUser]);
 
   useEffect(() => {
     void logAppOpen();
@@ -422,10 +416,7 @@ function MainAppContent() {
 
   // --- Step 1: Check Supabase Authentication ---
   if (!currentUser) {
-    if (authScreen === 'register') {
-      return <RegisterScreen onNavigateToLogin={() => setAuthScreen('login')} />;
-    }
-    return <LoginScreen onNavigateToRegister={() => setAuthScreen('register')} />;
+    return <LoginScreen />;
   }
 
   // --- Step 2: Check Setup Wizard (Preserves Stealth Disguise if Setup Completed) ---

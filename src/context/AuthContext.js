@@ -2,6 +2,10 @@ import React, { createContext, useEffect, useMemo, useRef, useState } from 'reac
 import { AppState, Platform } from 'react-native';
 
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
+
+WebBrowser.maybeCompleteAuthSession();
 import { ensureSeedData } from '../services/database';
 import { secureDeleteItem, secureGetItem, secureSetItem } from '../services/secureStorage';
 import { supabase } from '../services/supabase';
@@ -336,76 +340,43 @@ export const AuthProvider = ({ children }) => {
     setActiveVaultMode(null);
   };
 
-  const signInWithEmail = async (email, password) => {
+  const signInWithGoogleOAuth = async () => {
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
+      if (Platform.OS === 'web') {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin,
+          },
+        });
+        if (error) return { success: false, error: error.message };
+        return { success: true }; // Trình duyệt sẽ tự động chuyển hướng
+      }
+
+      const redirectUrl = makeRedirectUri();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
       });
 
       if (error) {
         return { success: false, error: error.message };
       }
 
-      setSession(data.session ?? null);
-      setCurrentUser(data.user ?? null);
-      if (data.user) {
-        await Promise.all([
-          checkSubscription(data.user),
-          loadUserSetupState(data.user),
-          getOrCreateUserMasterKey(data.user.id),
-        ]);
-      }
-      return { success: true, user: data.user, session: data.session };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  };
+      const res = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
-  const signUpWithEmail = async (email, password) => {
-    try {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      // On web, redirect back to the current app URL so Supabase can embed the
-      // confirmation token in the URL hash and detectSessionInUrl can pick it up.
-      const emailRedirectTo =
-        Platform.OS === 'web' && typeof window !== 'undefined'
-          ? window.location.origin
-          : undefined;
-
-      const { data, error } = await supabase.auth.signUp({
-        email: normalizedEmail,
-        password,
-        options: emailRedirectTo ? { emailRedirectTo } : undefined,
-      });
-
-      if (error) {
-        return { success: false, error: error.message };
+      if (res.type === 'success' && res.url) {
+        const { error: sessionError } = await supabase.auth.getSessionFromUrl(res.url);
+        if (sessionError) {
+          return { success: false, error: sessionError.message };
+        }
+        return { success: true };
       }
 
-      const needsConfirmation = !data.session;
-
-      // Only set session and currentUser if session was created (email confirmation off or auto-confirmed)
-      if (data.session && data.user) {
-        setSession(data.session);
-        setCurrentUser(data.user);
-        await Promise.all([
-          checkSubscription(data.user),
-          loadUserSetupState(data.user),
-          getOrCreateUserMasterKey(data.user.id),
-        ]);
-      } else {
-        setSession(null);
-        setCurrentUser(null);
-      }
-
-      return {
-        success: true,
-        user: data.user,
-        session: data.session,
-        needsConfirmation,
-      };
+      return { success: false, error: 'Đăng nhập bị huỷ.' };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -550,8 +521,7 @@ export const AuthProvider = ({ children }) => {
       updateDecoyCode,
       recoverRealPinWithAccount,
       updateBiometricSetting,
-      signInWithEmail,
-      signUpWithEmail,
+      signInWithGoogleOAuth,
       signOutUser,
     }),
     [
