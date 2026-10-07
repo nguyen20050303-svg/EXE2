@@ -24,7 +24,7 @@
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#203A5F"
+        "backgroundColor": "#060A17"
       },
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -101,7 +101,7 @@
         {
           "image": "./assets/icon.png",
           "resizeMode": "contain",
-          "backgroundColor": "#203A5F"
+          "backgroundColor": "#060A17"
         }
       ]
     ],
