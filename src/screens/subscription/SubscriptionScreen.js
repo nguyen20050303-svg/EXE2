@@ -194,7 +194,7 @@ export default function SubscriptionScreen({ onBack = null }) {
   let badgeTextStyle = styles.badgeTrialText;
 
   if (isPaidActive) {
-    badgeText = `ĐANG HOẠT ĐỘNG (${subscriptionAccess.plan.toUpperCase()})`;
+    badgeText = `ĐANG HOẠT ĐỘNG (${subscriptionAccess?.plan?.toUpperCase() || ''})`;
     badgeStyle = styles.badgeActive;
     badgeTextStyle = styles.badgeActiveText;
   } else if (isDowngraded) {
@@ -340,7 +340,7 @@ export default function SubscriptionScreen({ onBack = null }) {
               Thanh toán Chuyển khoản VietQR (Khuyên dùng)
             </Text>
             <Text style={styles.qrPayButtonSub}>
-              Gói {selectedPlan.name.split('·')[0].trim()} • {selectedPlan.priceText}
+              Gói {selectedPlan?.name?.split('·')[0]?.trim()} • {selectedPlan?.priceText}
             </Text>
           </View>
           <Text style={styles.qrPayButtonArrow}>›</Text>
@@ -399,7 +399,7 @@ export default function SubscriptionScreen({ onBack = null }) {
             <Text
               style={[
                 styles.infoValue,
-                { color: isExpired ? '#F87171' : isActive ? '#4ADE80' : '#38BDF8' },
+                { color: isDowngraded ? '#F87171' : isPaidActive ? '#4ADE80' : '#38BDF8' },
               ]}
             >
               {expirationText}
@@ -497,7 +497,7 @@ export default function SubscriptionScreen({ onBack = null }) {
                   <Text style={styles.detailLabel}>Số tiền:</Text>
                   <View style={styles.copyableValueRow}>
                     <Text style={styles.detailPriceValue}>
-                      {selectedPlan.priceValue.toLocaleString('vi-VN')} đ
+                      {String(selectedPlan?.priceValue || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} đ
                     </Text>
                     <TouchableOpacity
                       style={styles.copyBtn}

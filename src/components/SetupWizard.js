@@ -16,28 +16,28 @@ import DisguiseGuideModal from "./DisguiseGuideModal";
 const DISGUISE_OPTIONS = [
   {
     key: "notes",
-    icon: require("../assets/disguise-notes.png"),
+    icon: require("../../assets/disguise-notes.png"),
     label: "Ghi chú (Notes)",
     description:
       'Ngụy trang app ghi chú Apple. Nhấn giữ tiêu đề "Notes" 1.5s để mở két.',
   },
   {
     key: "calculator",
-    icon: require("../assets/disguise-calculator.png"),
+    icon: require("../../assets/disguise-calculator.png"),
     label: "Máy tính (Calculator)",
     description:
       'Ngụy trang máy tính số học thật. Nhấn giữ phím "=" 1.2s để mở két.',
   },
   {
     key: "weather",
-    icon: require("../assets/disguise-weather.png"),
+    icon: require("../../assets/disguise-weather.png"),
     label: "Thời tiết (Weather)",
     description:
       "Ngụy trang app dự báo thời tiết. Nhấn giữ thẻ nhiệt độ 1.5s để mở két.",
   },
   {
     key: "calendar",
-    icon: require("../assets/disguise-calendar.png"),
+    icon: require("../../assets/disguise-calendar.png"),
     label: "Lịch & Sự kiện (Calendar)",
     description:
       "Ngụy trang app lịch biểu. Nhấn giữ tiêu đề Tháng/Năm 1.5s để mở két.",
@@ -151,8 +151,9 @@ export default function SetupWizard({
         </View>
 
         <View style={styles.card}>
-          {step === 0
-            ? DISGUISE_OPTIONS.map((option) => {
+          {step === 0 ? (
+            <View style={styles.gridContainer}>
+              {DISGUISE_OPTIONS.map((option) => {
                 const isSelected = option.key === disguise;
                 return (
                   <TouchableOpacity
@@ -168,14 +169,15 @@ export default function SetupWizard({
                       style={styles.optionIcon}
                       resizeMode="contain"
                     />
-                    <Text style={styles.optionTitle}>{option.label}</Text>
-                    <Text style={styles.optionDescription}>
+                    <Text style={styles.optionTitle} numberOfLines={1}>{option.label}</Text>
+                    <Text style={styles.optionDescription} numberOfLines={3}>
                       {option.description}
                     </Text>
                   </TouchableOpacity>
                 );
-              })
-            : null}
+              })}
+            </View>
+          ) : null}
 
           {step === 1 ? (
             <>
@@ -419,27 +421,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(148, 163, 184, 0.14)",
   },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
   optionCard: {
+    width: '48%',
     backgroundColor: "#111C34",
     borderRadius: 20,
-    padding: 16,
+    padding: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "rgba(148, 163, 184, 0.16)",
+    alignItems: 'center',
   },
   optionCardSelected: {
     borderColor: "#60A5FA",
     backgroundColor: "#172554",
   },
+  optionIcon: {
+    width: 48,
+    height: 48,
+    marginBottom: 12,
+  },
   optionTitle: {
     color: "#F8FAFC",
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "700",
-    marginBottom: 8,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   optionDescription: {
     color: "#94A3B8",
-    lineHeight: 20,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
   },
   label: {
     color: "#E2E8F0",
