@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,35 +12,42 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import * as Clipboard from 'expo-clipboard';
-import { AuthContext } from '../../context/AuthContext';
+} from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { AuthContext } from "../../context/AuthContext";
 import {
   BANK_CONFIG,
   STORAGE_PLANS,
-  activateManualSubscription,
   getVietQRUrl,
+  getLatestManualPayment,
   requestSubscriptionPurchase,
   restorePurchases,
+  submitManualPayment,
   SUBSCRIPTION_STATUS,
-} from '../../services/subscriptionService';
+} from "../../services/subscriptionService";
 import {
   logConfirmTransfer,
   logOpenVietQRPayment,
   logSelectPlan,
   logViewPricing,
-} from '../../services/analytics';
-import { getUserStorageUsage } from '../../services/cloudStorage';
-import { confirmAction, formatBytes } from '../../utils/helpers';
+} from "../../services/analytics";
+import { getUserStorageUsage } from "../../services/cloudStorage";
+import { confirmAction, formatBytes } from "../../utils/helpers";
 
 export default function SubscriptionScreen({ onBack = null }) {
-  const { currentUser, subscription, subscriptionAccess, refreshSubscription, signOutUser } =
-    useContext(AuthContext);
+  const {
+    currentUser,
+    subscription,
+    subscriptionAccess,
+    refreshSubscription,
+    signOutUser,
+  } = useContext(AuthContext);
 
-  const [selectedPlanId, setSelectedPlanId] = useState('STANDARD_1_5GB');
+  const [selectedPlanId, setSelectedPlanId] = useState("STANDARD_1_5GB");
   const [loadingAction, setLoadingAction] = useState(false);
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState("NONE");
   const [storageUsage, setStorageUsage] = useState({
     storage_used: 0,
     storage_limit: 268435456,
@@ -52,7 +59,9 @@ export default function SubscriptionScreen({ onBack = null }) {
 
   const paidPlans = STORAGE_PLANS.filter((p) => !p.isFree);
   const selectedPlan =
-    paidPlans.find((p) => p.id === selectedPlanId) || paidPlans[1] || STORAGE_PLANS[2];
+    paidPlans.find((p) => p.id === selectedPlanId) ||
+    paidPlans[1] ||
+    STORAGE_PLANS[2];
 
   // Tải dung lượng Cloud thực tế của người dùng
   useEffect(() => {
@@ -65,7 +74,9 @@ export default function SubscriptionScreen({ onBack = null }) {
   }, []);
 
   // Nội dung chuyển khoản định danh riêng theo user id
-  const transferMemo = `HIDDER ${(currentUser?.id?.replace(/[^a-zA-Z0-9]/g, '') || 'VIP')
+  const transferMemo = `HIDDER ${(
+    currentUser?.id?.replace(/[^a-zA-Z0-9]/g, "") || "VIP"
+  )
     .slice(0, 8)
     .toUpperCase()}`;
 
@@ -83,6 +94,9 @@ export default function SubscriptionScreen({ onBack = null }) {
   const handleOpenQRModal = () => {
     void logOpenVietQRPayment(selectedPlan.id, selectedPlan.priceValue);
     setQrModalVisible(true);
+    void getLatestManualPayment().then((result) => {
+      if (result.success) setPaymentStatus(result.status || "NONE");
+    });
   };
 
   const handleCopy = async (text, fieldName) => {
@@ -91,7 +105,7 @@ export default function SubscriptionScreen({ onBack = null }) {
       setCopiedField(fieldName);
       setTimeout(() => setCopiedField(null), 2000);
     } catch {
-      Alert.alert('Sao chép', `Đã sao chép: ${text}`);
+      Alert.alert("Sao chép", `Đã sao chép: ${text}`);
     }
   };
 
@@ -99,32 +113,49 @@ export default function SubscriptionScreen({ onBack = null }) {
     try {
       setLoadingAction(true);
       void logConfirmTransfer(selectedPlan.id, selectedPlan.priceValue);
-      const res = await activateManualSubscription(currentUser, selectedPlan.id);
+      const res = await submitManualPayment({
+        planId: selectedPlan.id,
+        amount: selectedPlan.priceValue,
+        transferMemo,
+      });
 
       if (res.success) {
-        if (refreshSubscription) {
-          await refreshSubscription();
-        }
+        setPaymentStatus(res.status || "PENDING");
         setQrModalVisible(false);
         Alert.alert(
-          'Thanh toán thành công 🎉',
-          `Gói ${selectedPlan.name} đã được kích hoạt thành công!\nBạn có thể sử dụng đầy đủ dung lượng và tính năng của két bảo mật.`,
-          [{ text: 'Bắt đầu sử dụng' }]
+          "Đã gửi yêu cầu xác minh",
+          `Gói ${selectedPlan.name} đang chờ kiểm tra giao dịch. Gói chỉ được cập nhật sau khi hệ thống xác nhận khoản chuyển khoản.`,
+          [{ text: "Bắt đầu sử dụng" }],
         );
       } else {
-        Alert.alert('Thông báo', res.error || 'Chưa thể kích hoạt gói lúc này.');
+        Alert.alert(
+          "Thông báo",
+          res.error || "Chưa thể kích hoạt gói lúc này.",
+        );
       }
     } catch (err) {
-      Alert.alert('Lỗi', `Kích hoạt thất bại: ${err.message}`);
+      Alert.alert("Lỗi", `Kích hoạt thất bại: ${err.message}`);
     } finally {
       setLoadingAction(false);
     }
   };
 
+  const handleCheckPayment = async () => {
+    setLoadingAction(true);
+    const result = await getLatestManualPayment();
+    if (result.success) {
+      setPaymentStatus(result.status || "NONE");
+      if (result.status === "PAID" && refreshSubscription) {
+        await refreshSubscription();
+      }
+    }
+    setLoadingAction(false);
+  };
+
   const handleStorePurchasePress = async () => {
     try {
       setLoadingAction(true);
-      const provider = Platform.OS === 'ios' ? 'APPLE' : 'GOOGLE_PLAY';
+      const provider = Platform.OS === "ios" ? "APPLE" : "GOOGLE_PLAY";
       const result = await requestSubscriptionPurchase({
         planId: selectedPlan.id,
         provider,
@@ -132,19 +163,22 @@ export default function SubscriptionScreen({ onBack = null }) {
 
       if (!result.success) {
         Alert.alert(
-          'Dịch vụ thanh toán Store',
+          "Dịch vụ thanh toán Store",
           result.error ||
             `Cổng thanh toán Store (${provider}) chưa cấu hình tài khoản Google/Apple Play Console.\n\nVui lòng dùng hình thức "Chuyển khoản VietQR" ở trên để thanh toán trực tiếp.`,
-          [{ text: 'Đã hiểu' }]
+          [{ text: "Đã hiểu" }],
         );
       } else {
         if (refreshSubscription) {
           await refreshSubscription();
         }
-        Alert.alert('Thành công', `Đăng ký gói ${selectedPlan.name} thành công!`);
+        Alert.alert(
+          "Thành công",
+          `Đăng ký gói ${selectedPlan.name} thành công!`,
+        );
       }
     } catch (err) {
-      Alert.alert('Lỗi', `Không thể hoàn tất giao dịch: ${err.message}`);
+      Alert.alert("Lỗi", `Không thể hoàn tất giao dịch: ${err.message}`);
     } finally {
       setLoadingAction(false);
     }
@@ -157,18 +191,22 @@ export default function SubscriptionScreen({ onBack = null }) {
 
       if (!result.success) {
         Alert.alert(
-          'Khôi phục gói mua',
-          result.error || 'Chưa tìm thấy giao dịch mua hợp lệ nào trên tài khoản Store của bạn.',
-          [{ text: 'Đóng' }]
+          "Khôi phục gói mua",
+          result.error ||
+            "Chưa tìm thấy giao dịch mua hợp lệ nào trên tài khoản Store của bạn.",
+          [{ text: "Đóng" }],
         );
       } else {
         if (refreshSubscription) {
           await refreshSubscription();
         }
-        Alert.alert('Thành công', 'Đã khôi phục thành công gói đăng ký của bạn!');
+        Alert.alert(
+          "Thành công",
+          "Đã khôi phục thành công gói đăng ký của bạn!",
+        );
       }
     } catch (err) {
-      Alert.alert('Lỗi', `Khôi phục thất bại: ${err.message}`);
+      Alert.alert("Lỗi", `Khôi phục thất bại: ${err.message}`);
     } finally {
       setLoadingAction(false);
     }
@@ -176,9 +214,9 @@ export default function SubscriptionScreen({ onBack = null }) {
 
   const handleSignOut = () => {
     confirmAction({
-      title: 'Đăng xuất',
-      message: 'Bạn có muốn đăng xuất khỏi tài khoản này?',
-      confirmText: 'Đăng xuất',
+      title: "Đăng xuất",
+      message: "Bạn có muốn đăng xuất khỏi tài khoản này?",
+      confirmText: "Đăng xuất",
       onConfirm: async () => {
         await signOutUser();
       },
@@ -186,26 +224,30 @@ export default function SubscriptionScreen({ onBack = null }) {
   };
 
   // Freemium Status Evaluation
-  const isPaidActive = subscriptionAccess?.isPaid && subscriptionAccess?.status === SUBSCRIPTION_STATUS.ACTIVE;
-  const isDowngraded = subscriptionAccess?.isDowngraded || subscriptionAccess?.status === 'DOWNGRADED_FREE';
+  const isPaidActive =
+    subscriptionAccess?.isPaid &&
+    subscriptionAccess?.status === SUBSCRIPTION_STATUS.ACTIVE;
+  const isDowngraded =
+    subscriptionAccess?.isDowngraded ||
+    subscriptionAccess?.status === "DOWNGRADED_FREE";
 
-  let badgeText = 'GÓI MIỄN PHÍ 256 MB';
+  let badgeText = "GÓI MIỄN PHÍ 256 MB";
   let badgeStyle = styles.badgeTrial;
   let badgeTextStyle = styles.badgeTrialText;
 
   if (isPaidActive) {
-    badgeText = `ĐANG HOẠT ĐỘNG (${subscriptionAccess?.plan?.toUpperCase() || ''})`;
+    badgeText = `ĐANG HOẠT ĐỘNG (${subscriptionAccess?.plan?.toUpperCase() || ""})`;
     badgeStyle = styles.badgeActive;
     badgeTextStyle = styles.badgeActiveText;
   } else if (isDowngraded) {
-    badgeText = 'ĐÃ VỀ GÓI FREE 256 MB (GÓI CŨ HẾT HẠN)';
+    badgeText = "ĐÃ VỀ GÓI FREE 256 MB (GÓI CŨ HẾT HẠN)";
     badgeStyle = styles.badgeExpired;
     badgeTextStyle = styles.badgeExpiredText;
   }
 
   const expirationText = subscriptionAccess?.expirationDate
     ? `Hết hạn / Gia hạn: ${subscriptionAccess.expirationDate}`
-    : 'Miễn phí vĩnh viễn (Không hết hạn)';
+    : "Miễn phí vĩnh viễn (Không hết hạn)";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -220,7 +262,8 @@ export default function SubscriptionScreen({ onBack = null }) {
             <Text style={styles.mainTitle}>Nâng cấp</Text>
             <Text style={styles.mainTitle}>dung lượng Cloud</Text>
             <Text style={styles.subtitle}>
-              Lưu trên máy miễn phí trọn đời. Nâng cấp để sao lưu Cloud an toàn hơn.
+              Lưu trên máy miễn phí trọn đời. Nâng cấp để sao lưu Cloud an toàn
+              hơn.
             </Text>
           </View>
 
@@ -239,9 +282,12 @@ export default function SubscriptionScreen({ onBack = null }) {
         <View style={styles.localFreeBanner}>
           <Text style={styles.localFreeIcon}>💾</Text>
           <View style={{ flex: 1 }}>
-            <Text style={styles.localFreeTitle}>Lưu trữ trên thiết bị: Miễn phí trọn đời</Text>
+            <Text style={styles.localFreeTitle}>
+              Lưu trữ trên thiết bị: Miễn phí trọn đời
+            </Text>
             <Text style={styles.localFreeDesc}>
-              Toàn bộ ảnh, video, ghi chú, mật khẩu cục bộ không bao giờ bị khóa hay giới hạn dung lượng.
+              Toàn bộ ảnh, video, ghi chú, mật khẩu cục bộ không bao giờ bị khóa
+              hay giới hạn dung lượng.
             </Text>
           </View>
         </View>
@@ -250,8 +296,14 @@ export default function SubscriptionScreen({ onBack = null }) {
         <View style={styles.quotaCard}>
           <View style={styles.quotaHeader}>
             <Text style={styles.quotaTitle}>☁️ Cloud Storage</Text>
-            <Text style={[styles.quotaUsageText, storageUsage.is_full && { color: '#EF4444' }]}>
-              {formatBytes(storageUsage.storage_used)} / {formatBytes(storageUsage.storage_limit)}
+            <Text
+              style={[
+                styles.quotaUsageText,
+                storageUsage.is_full && { color: "#EF4444" },
+              ]}
+            >
+              {formatBytes(storageUsage.storage_used)} /{" "}
+              {formatBytes(storageUsage.storage_limit)}
             </Text>
           </View>
 
@@ -263,10 +315,10 @@ export default function SubscriptionScreen({ onBack = null }) {
                 {
                   width: `${Math.min(100, Math.max(3, storageUsage.percentage))}%`,
                   backgroundColor: storageUsage.is_full
-                    ? '#EF4444'
+                    ? "#EF4444"
                     : storageUsage.percentage > 80
-                    ? '#F59E0B'
-                    : '#38BDF8',
+                      ? "#F59E0B"
+                      : "#38BDF8",
                 },
               ]}
             />
@@ -275,10 +327,12 @@ export default function SubscriptionScreen({ onBack = null }) {
           <View style={styles.quotaSubRow}>
             <Text style={styles.quotaRemainingText}>
               {storageUsage.is_full
-                ? '⚠️ Đã hết dung lượng Cloud'
+                ? "⚠️ Đã hết dung lượng Cloud"
                 : `Còn trống: ${formatBytes(storageUsage.remaining_bytes)}`}
             </Text>
-            <Text style={styles.quotaPercentText}>{storageUsage.percentage}%</Text>
+            <Text style={styles.quotaPercentText}>
+              {storageUsage.percentage}%
+            </Text>
           </View>
 
           {/* Storage Full Warning Banner */}
@@ -286,7 +340,9 @@ export default function SubscriptionScreen({ onBack = null }) {
             <View style={styles.storageFullWarning}>
               <Text style={styles.storageFullWarningIcon}>⚠️</Text>
               <Text style={styles.storageFullWarningText}>
-                Dung lượng Cloud đã đầy. Các file trên máy vẫn an toàn. Hãy chọn gói bên dưới để nâng cấp dung lượng sao lưu hoặc xóa bớt file Cloud.
+                Dung lượng Cloud đã đầy. Các file trên máy vẫn an toàn. Hãy chọn
+                gói bên dưới để nâng cấp dung lượng sao lưu hoặc xóa bớt file
+                Cloud.
               </Text>
             </View>
           ) : null}
@@ -340,11 +396,25 @@ export default function SubscriptionScreen({ onBack = null }) {
               Thanh toán Chuyển khoản VietQR (Khuyên dùng)
             </Text>
             <Text style={styles.qrPayButtonSub}>
-              Gói {selectedPlan?.name?.split('·')[0]?.trim()} • {selectedPlan?.priceText}
+              Gói {selectedPlan?.name?.split("·")[0]?.trim()} •{" "}
+              {selectedPlan?.priceText}
             </Text>
           </View>
           <Text style={styles.qrPayButtonArrow}>›</Text>
         </TouchableOpacity>
+
+        {paymentStatus === "PENDING" ? (
+          <TouchableOpacity
+            style={styles.restoreButton}
+            disabled={loadingAction}
+            onPress={handleCheckPayment}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.restoreButtonText}>
+              Kiểm tra trạng thái thanh toán
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
         {/* Secondary Option: Thanh toán qua Google / Apple Store */}
         <TouchableOpacity
@@ -357,7 +427,8 @@ export default function SubscriptionScreen({ onBack = null }) {
             <ActivityIndicator size="small" color="#94A3B8" />
           ) : (
             <Text style={styles.storePayButtonText}>
-              Hoặc thanh toán qua {Platform.OS === 'ios' ? 'Apple App Store' : 'Google Play'}
+              Hoặc thanh toán qua{" "}
+              {Platform.OS === "ios" ? "Apple App Store" : "Google Play"}
             </Text>
           )}
         </TouchableOpacity>
@@ -379,7 +450,7 @@ export default function SubscriptionScreen({ onBack = null }) {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Tài khoản:</Text>
             <Text style={styles.infoValue} numberOfLines={1}>
-              {currentUser?.email || 'N/A'}
+              {currentUser?.email || "N/A"}
             </Text>
           </View>
 
@@ -399,7 +470,13 @@ export default function SubscriptionScreen({ onBack = null }) {
             <Text
               style={[
                 styles.infoValue,
-                { color: isDowngraded ? '#F87171' : isPaidActive ? '#4ADE80' : '#38BDF8' },
+                {
+                  color: isDowngraded
+                    ? "#F87171"
+                    : isPaidActive
+                      ? "#4ADE80"
+                      : "#38BDF8",
+                },
               ]}
             >
               {expirationText}
@@ -410,7 +487,9 @@ export default function SubscriptionScreen({ onBack = null }) {
         {/* Disguise Shell Return */}
         {onBack ? (
           <TouchableOpacity style={styles.disguiseButton} onPress={onBack}>
-            <Text style={styles.disguiseButtonText}>🔒 Về màn hình ngụy trang</Text>
+            <Text style={styles.disguiseButtonText}>
+              🔒 Về màn hình ngụy trang
+            </Text>
           </TouchableOpacity>
         ) : null}
 
@@ -447,7 +526,10 @@ export default function SubscriptionScreen({ onBack = null }) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.modalScroll}
+            >
               {/* QR Image Frame */}
               <View style={styles.qrFrame}>
                 <Image
@@ -464,7 +546,9 @@ export default function SubscriptionScreen({ onBack = null }) {
               <View style={styles.bankDetailCard}>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Ngân hàng:</Text>
-                  <Text style={styles.detailValueBold}>{BANK_CONFIG.bankName}</Text>
+                  <Text style={styles.detailValueBold}>
+                    {BANK_CONFIG.bankName}
+                  </Text>
                 </View>
 
                 <View style={styles.dividerLight} />
@@ -472,13 +556,17 @@ export default function SubscriptionScreen({ onBack = null }) {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Số tài khoản:</Text>
                   <View style={styles.copyableValueRow}>
-                    <Text style={styles.detailValueMono}>{BANK_CONFIG.accountNo}</Text>
+                    <Text style={styles.detailValueMono}>
+                      {BANK_CONFIG.accountNo}
+                    </Text>
                     <TouchableOpacity
                       style={styles.copyBtn}
-                      onPress={() => handleCopy(BANK_CONFIG.accountNo, 'account')}
+                      onPress={() =>
+                        handleCopy(BANK_CONFIG.accountNo, "account")
+                      }
                     >
                       <Text style={styles.copyBtnText}>
-                        {copiedField === 'account' ? '✓ Đã chép' : 'Sao chép'}
+                        {copiedField === "account" ? "✓ Đã chép" : "Sao chép"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -488,7 +576,9 @@ export default function SubscriptionScreen({ onBack = null }) {
 
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Chủ tài khoản:</Text>
-                  <Text style={styles.detailValueBold}>{BANK_CONFIG.accountName}</Text>
+                  <Text style={styles.detailValueBold}>
+                    {BANK_CONFIG.accountName}
+                  </Text>
                 </View>
 
                 <View style={styles.dividerLight} />
@@ -497,16 +587,20 @@ export default function SubscriptionScreen({ onBack = null }) {
                   <Text style={styles.detailLabel}>Số tiền:</Text>
                   <View style={styles.copyableValueRow}>
                     <Text style={styles.detailPriceValue}>
-                      {String(selectedPlan?.priceValue || 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} đ
+                      {String(selectedPlan?.priceValue || 0).replace(
+                        /\B(?=(\d{3})+(?!\d))/g,
+                        ".",
+                      )}{" "}
+                      đ
                     </Text>
                     <TouchableOpacity
                       style={styles.copyBtn}
                       onPress={() =>
-                        handleCopy(String(selectedPlan.priceValue), 'amount')
+                        handleCopy(String(selectedPlan.priceValue), "amount")
                       }
                     >
                       <Text style={styles.copyBtnText}>
-                        {copiedField === 'amount' ? '✓ Đã chép' : 'Sao chép'}
+                        {copiedField === "amount" ? "✓ Đã chép" : "Sao chép"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -516,7 +610,9 @@ export default function SubscriptionScreen({ onBack = null }) {
 
                 <View style={styles.detailRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.detailLabel}>Nội dung chuyển khoản:</Text>
+                    <Text style={styles.detailLabel}>
+                      Nội dung chuyển khoản:
+                    </Text>
                     <Text style={styles.detailSubNote}>
                       (Vui lòng giữ nguyên nội dung này)
                     </Text>
@@ -525,10 +621,10 @@ export default function SubscriptionScreen({ onBack = null }) {
                     <Text style={styles.detailMemoValue}>{transferMemo}</Text>
                     <TouchableOpacity
                       style={styles.copyBtn}
-                      onPress={() => handleCopy(transferMemo, 'memo')}
+                      onPress={() => handleCopy(transferMemo, "memo")}
                     >
                       <Text style={styles.copyBtnText}>
-                        {copiedField === 'memo' ? '✓ Đã chép' : 'Sao chép'}
+                        {copiedField === "memo" ? "✓ Đã chép" : "Sao chép"}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -571,7 +667,7 @@ export default function SubscriptionScreen({ onBack = null }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0D111A',
+    backgroundColor: "#0D111A",
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -579,9 +675,9 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 28,
   },
   titleWrap: {
@@ -590,14 +686,14 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
     letterSpacing: -0.5,
     lineHeight: 38,
   },
   subtitle: {
     fontSize: 14,
-    color: '#94A3B8',
+    color: "#94A3B8",
     marginTop: 10,
     lineHeight: 20,
   },
@@ -605,37 +701,37 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#1E2530',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#1E2530",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: '#2D3748',
+    borderColor: "#2D3748",
   },
   backButtonIcon: {
     fontSize: 26,
-    color: '#E2E8F0',
+    color: "#E2E8F0",
     lineHeight: 28,
-    fontWeight: '300',
-    textAlign: 'center',
+    fontWeight: "300",
+    textAlign: "center",
   },
   plansList: {
     gap: 14,
     marginBottom: 20,
   },
   storageCard: {
-    backgroundColor: '#171B26',
+    backgroundColor: "#171B26",
     borderRadius: 18,
     paddingVertical: 18,
     paddingHorizontal: 20,
     borderWidth: 1.5,
-    borderColor: '#232938',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderColor: "#232938",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   storageCardActive: {
-    borderColor: '#38BDF8',
-    backgroundColor: '#1B2232',
+    borderColor: "#38BDF8",
+    backgroundColor: "#1B2232",
   },
   cardLeftCol: {
     flex: 1,
@@ -643,37 +739,37 @@ const styles = StyleSheet.create({
   },
   cardPlanName: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   cardPlanDesc: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: "#94A3B8",
     lineHeight: 18,
   },
   cardRightCol: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+    alignItems: "flex-end",
+    justifyContent: "center",
   },
   cardPriceText: {
     fontSize: 17,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
     letterSpacing: -0.2,
   },
   cardPriceTextActive: {
-    color: '#38BDF8',
+    color: "#38BDF8",
   },
   qrPayButton: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: "#38BDF8",
     borderRadius: 18,
     paddingVertical: 16,
     paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
-    shadowColor: '#38BDF8',
+    shadowColor: "#38BDF8",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -687,57 +783,57 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   qrPayButtonTitle: {
-    color: '#090D16',
+    color: "#090D16",
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   qrPayButtonSub: {
-    color: '#0F2942',
+    color: "#0F2942",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 2,
   },
   qrPayButtonArrow: {
     fontSize: 22,
-    color: '#090D16',
-    fontWeight: '700',
+    color: "#090D16",
+    fontWeight: "700",
     marginLeft: 6,
   },
   storePayButton: {
     paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
   storePayButtonText: {
-    color: '#94A3B8',
+    color: "#94A3B8",
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   restoreButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderRadius: 14,
     paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 20,
   },
   restoreButtonText: {
-    color: '#64748B',
+    color: "#64748B",
     fontSize: 12.5,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   localFreeBanner: {
-    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    backgroundColor: "rgba(56, 189, 248, 0.08)",
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: "rgba(56, 189, 248, 0.25)",
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   localFreeIcon: {
@@ -745,74 +841,74 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   localFreeTitle: {
-    color: '#38BDF8',
+    color: "#38BDF8",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 2,
   },
   localFreeDesc: {
-    color: '#94A3B8',
+    color: "#94A3B8",
     fontSize: 12,
     lineHeight: 16,
   },
   quotaCard: {
-    backgroundColor: '#171B26',
+    backgroundColor: "#171B26",
     borderRadius: 18,
     padding: 18,
     marginBottom: 24,
     borderWidth: 1.5,
-    borderColor: '#232938',
+    borderColor: "#232938",
   },
   quotaHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   quotaTitle: {
-    color: '#F8FAFC',
+    color: "#F8FAFC",
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   quotaUsageText: {
-    color: '#38BDF8',
+    color: "#38BDF8",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   progressBarBackground: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#232938',
-    overflow: 'hidden',
+    backgroundColor: "#232938",
+    overflow: "hidden",
     marginBottom: 8,
   },
   progressBarFill: {
-    height: '100%',
+    height: "100%",
     borderRadius: 4,
   },
   quotaSubRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   quotaRemainingText: {
-    color: '#94A3B8',
+    color: "#94A3B8",
     fontSize: 12,
   },
   quotaPercentText: {
-    color: '#64748B',
+    color: "#64748B",
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   storageFullWarning: {
     marginTop: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    flexDirection: "row",
+    alignItems: "center",
   },
   storageFullWarningIcon: {
     fontSize: 18,
@@ -820,170 +916,170 @@ const styles = StyleSheet.create({
   },
   storageFullWarningText: {
     flex: 1,
-    color: '#FCA5A5',
+    color: "#FCA5A5",
     fontSize: 12,
     lineHeight: 16,
   },
   sectionHeading: {
-    color: '#64748B',
+    color: "#64748B",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.8,
     marginBottom: 12,
   },
   infoCard: {
-    backgroundColor: '#121722',
+    backgroundColor: "#121722",
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#1E2535',
+    borderColor: "#1E2535",
   },
   infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 6,
   },
   infoLabel: {
-    color: '#64748B',
+    color: "#64748B",
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   infoValue: {
-    color: '#CBD5E1',
+    color: "#CBD5E1",
     fontSize: 13,
-    fontWeight: '600',
-    maxWidth: '60%',
+    fontWeight: "600",
+    maxWidth: "60%",
   },
   divider: {
     height: 1,
-    backgroundColor: '#1E2535',
+    backgroundColor: "#1E2535",
     marginVertical: 4,
   },
   badgeExpired: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderColor: "rgba(239, 68, 68, 0.3)",
   },
   badgeExpiredText: {
-    color: '#F87171',
+    color: "#F87171",
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   badgeActive: {
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    backgroundColor: "rgba(34, 197, 94, 0.15)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.3)',
+    borderColor: "rgba(34, 197, 94, 0.3)",
   },
   badgeActiveText: {
-    color: '#4ADE80',
+    color: "#4ADE80",
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   badgeTrial: {
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: "rgba(56, 189, 248, 0.15)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: "rgba(56, 189, 248, 0.3)",
   },
   badgeTrialText: {
-    color: '#38BDF8',
+    color: "#38BDF8",
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   disguiseButton: {
-    backgroundColor: '#1E2535',
+    backgroundColor: "#1E2535",
     borderRadius: 14,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#2D3748',
+    borderColor: "#2D3748",
   },
   disguiseButtonText: {
-    color: '#E2E8F0',
+    color: "#E2E8F0",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   logoutButton: {
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   logoutButtonText: {
-    color: '#64748B',
+    color: "#64748B",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "flex-end",
   },
   modalContainer: {
-    backgroundColor: '#111726',
+    backgroundColor: "#111726",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: '90%',
+    maxHeight: "90%",
     paddingBottom: 32,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: "#1E293B",
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 22,
     paddingTop: 20,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: "#1E293B",
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
   modalSubtitle: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: "#94A3B8",
     marginTop: 2,
   },
   modalCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1E293B',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#1E293B",
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalCloseText: {
-    color: '#94A3B8',
+    color: "#94A3B8",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   modalScroll: {
     paddingHorizontal: 20,
     paddingTop: 16,
   },
   qrFrame: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 18,
-    shadowColor: '#000000',
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -992,106 +1088,106 @@ const styles = StyleSheet.create({
   qrImage: {
     width: 240,
     height: 240,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   qrNotice: {
     fontSize: 12,
-    color: '#475569',
-    textAlign: 'center',
+    color: "#475569",
+    textAlign: "center",
     marginTop: 10,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   bankDetailCard: {
-    backgroundColor: '#161F33',
+    backgroundColor: "#161F33",
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#24324D',
+    borderColor: "#24324D",
     marginBottom: 20,
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 8,
   },
   detailLabel: {
-    color: '#94A3B8',
+    color: "#94A3B8",
     fontSize: 13,
   },
   detailValueBold: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   detailPriceValue: {
-    color: '#38BDF8',
+    color: "#38BDF8",
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   detailMemoValue: {
-    color: '#FBBF24',
+    color: "#FBBF24",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.5,
   },
   detailValueMono: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1,
   },
   detailSubNote: {
-    color: '#64748B',
+    color: "#64748B",
     fontSize: 11,
     marginTop: 2,
   },
   copyableValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   copyBtn: {
-    backgroundColor: '#24324D',
+    backgroundColor: "#24324D",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
   copyBtnText: {
-    color: '#93C5FD',
+    color: "#93C5FD",
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   dividerLight: {
     height: 1,
-    backgroundColor: '#24324D',
+    backgroundColor: "#24324D",
     marginVertical: 4,
   },
   confirmPaidButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: "#22C55E",
     borderRadius: 16,
     paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 12,
-    shadowColor: '#22C55E',
+    shadowColor: "#22C55E",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
   },
   confirmPaidButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   cancelModalButton: {
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelModalText: {
-    color: '#94A3B8',
+    color: "#94A3B8",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

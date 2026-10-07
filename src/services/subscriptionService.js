@@ -1,64 +1,68 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SUPABASE_URL, supabase } from './supabase.js';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SUPABASE_URL, supabase } from "./supabase.js";
 
 export const SUBSCRIPTION_STATUS = {
-  TRIAL: 'TRIAL',
-  ACTIVE: 'ACTIVE',
-  EXPIRED: 'EXPIRED',
-  CANCELLED: 'CANCELLED',
+  TRIAL: "TRIAL",
+  ACTIVE: "ACTIVE",
+  EXPIRED: "EXPIRED",
+  CANCELLED: "CANCELLED",
 };
 
 export const STORAGE_PLANS = [
   {
-    id: 'FREE_256MB',
-    name: 'Free · 256 MB',
-    storageLabel: '256 MB',
+    id: "FREE_256MB",
+    name: "Free · 256 MB",
+    storageLabel: "256 MB",
     storageBytes: 256 * 1024 * 1024, // 268,435,456 bytes
-    description: 'Miễn phí trọn đời cho mọi tài khoản vừa đăng ký.',
-    priceText: '0đ/tháng',
+    description: "Miễn phí trọn đời cho mọi tài khoản vừa đăng ký.",
+    priceText: "0đ/tháng",
     priceValue: 0,
     isFree: true,
   },
   {
-    id: 'BASIC_500MB',
-    name: 'Basic · 500 MB',
-    storageLabel: '500 MB',
+    id: "BASIC_500MB",
+    name: "Basic · 500 MB",
+    storageLabel: "500 MB",
     storageBytes: 500 * 1024 * 1024, // 524,288,000 bytes
-    description: 'Phù hợp để lưu ảnh và ghi chú riêng tư cơ bản.',
-    priceText: '12k/tháng',
+    description: "Phù hợp để lưu ảnh và ghi chú riêng tư cơ bản.",
+    priceText: "12k/tháng",
     priceValue: 12000,
   },
   {
-    id: 'STANDARD_1_5GB',
-    name: 'Standard · 1.5 GB',
-    storageLabel: '1.5 GB',
+    id: "STANDARD_1_5GB",
+    name: "Standard · 1.5 GB",
+    storageLabel: "1.5 GB",
     storageBytes: 1536 * 1024 * 1024, // 1,610,612,736 bytes
-    description: 'Dung lượng vừa cho ảnh, video ngắn và tài liệu.',
-    priceText: '32k/tháng',
+    description: "Dung lượng vừa cho ảnh, video ngắn và tài liệu.",
+    priceText: "32k/tháng",
     priceValue: 32000,
   },
   {
-    id: 'PREMIUM_5GB',
-    name: 'Premium · 5 GB',
-    storageLabel: '5 GB',
+    id: "PREMIUM_5GB",
+    name: "Premium · 5 GB",
+    storageLabel: "5 GB",
     storageBytes: 5120 * 1024 * 1024, // 5,368,709,120 bytes
-    description: 'Dung lượng lớn hơn cho nhiều file cá nhân.',
-    priceText: '52k/tháng',
+    description: "Dung lượng lớn hơn cho nhiều file cá nhân.",
+    priceText: "52k/tháng",
     priceValue: 52000,
-    aliasId: 'PLUS_5GB',
+    aliasId: "PLUS_5GB",
   },
 ];
 
 export const getPlanById = (planId) => {
   if (!planId) return STORAGE_PLANS[0];
   const normalized = String(planId).toUpperCase();
-  if (normalized === 'PLUS_5GB' || normalized.includes('5GB') || normalized.includes('PREMIUM')) {
+  if (
+    normalized === "PLUS_5GB" ||
+    normalized.includes("5GB") ||
+    normalized.includes("PREMIUM")
+  ) {
     return STORAGE_PLANS[3];
   }
-  if (normalized.includes('1_5GB') || normalized.includes('STANDARD')) {
+  if (normalized.includes("1_5GB") || normalized.includes("STANDARD")) {
     return STORAGE_PLANS[2];
   }
-  if (normalized.includes('500MB') || normalized.includes('BASIC')) {
+  if (normalized.includes("500MB") || normalized.includes("BASIC")) {
     return STORAGE_PLANS[1];
   }
   return STORAGE_PLANS[0]; // Free
@@ -69,10 +73,10 @@ export const getPlanById = (planId) => {
  * Bạn có thể thay đổi số tài khoản, tên ngân hàng và chủ tài khoản tại đây.
  */
 export const BANK_CONFIG = {
-  bankId: 'MB', // Mã ngân hàng: MB, VCB, TCB, VPB, ACB, TPB, BIDV, CTG, VIB, STB...
-  bankName: 'MBBank (Ngân Hàng Quân Đội)',
-  accountNo: '0352410259', // <-- THAY SỐ TÀI KHOẢN CỦA BẠN VÀO ĐÂY
-  accountName: 'CHỦ TÀI KHOẢN HIDDER', // <-- THAY TÊN CHỦ TÀI KHOẢN VÀO ĐÂY
+  bankId: "MB", // Mã ngân hàng: MB, VCB, TCB, VPB, ACB, TPB, BIDV, CTG, VIB, STB...
+  bankName: "MBBank (Ngân Hàng Quân Đội)",
+  accountNo: "0352410259", // <-- THAY SỐ TÀI KHOẢN CỦA BẠN VÀO ĐÂY
+  accountName: "CHỦ TÀI KHOẢN HIDDER", // <-- THAY TÊN CHỦ TÀI KHOẢN VÀO ĐÂY
 };
 
 /**
@@ -83,10 +87,10 @@ export const getVietQRUrl = ({
   accountNo = BANK_CONFIG.accountNo,
   accountName = BANK_CONFIG.accountName,
   amount = 32000,
-  memo = 'HIDDER VAULT',
+  memo = "HIDDER VAULT",
 } = {}) => {
   return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
-    memo
+    memo,
   )}&accountName=${encodeURIComponent(accountName)}`;
 };
 
@@ -108,7 +112,7 @@ export const setCachedSubscription = async (userId, data) => {
   if (!userId || !data) return;
   try {
     await AsyncStorage.setItem(getSubCacheKey(userId), JSON.stringify(data));
-  } catch { }
+  } catch {}
 };
 
 /**
@@ -119,9 +123,9 @@ export const fetchSubscription = async (userId) => {
 
   try {
     const { data, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', userId)
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (!error && data) {
@@ -130,14 +134,20 @@ export const fetchSubscription = async (userId) => {
     }
 
     if (error) {
-      console.warn('Lỗi truy vấn subscription từ Supabase, thử nạp từ cache:', error.message);
+      console.warn(
+        "Lỗi truy vấn subscription từ Supabase, thử nạp từ cache:",
+        error.message,
+      );
       return await getCachedSubscription(userId);
     }
 
     // If no error but data is null (no record in DB)
     return null;
   } catch (err) {
-    console.warn('Lỗi mạng khi tải subscription (offline fallback):', err.message);
+    console.warn(
+      "Lỗi mạng khi tải subscription (offline fallback):",
+      err.message,
+    );
     return await getCachedSubscription(userId);
   }
 };
@@ -147,7 +157,8 @@ export const getSubscription = fetchSubscription;
 /**
  * Get status string from subscription record
  */
-export const getSubscriptionStatus = (subscription) => subscription?.status || SUBSCRIPTION_STATUS.ACTIVE;
+export const getSubscriptionStatus = (subscription) =>
+  subscription?.status || SUBSCRIPTION_STATUS.ACTIVE;
 
 /**
  * Check if evaluated access allows entry to Vault (Always true in Freemium: local vault is free forever)
@@ -171,10 +182,10 @@ export const getRemainingTrialDays = (subscription) => {
  */
 export const createTrialIfNeeded = async () => {
   try {
-    const { data, error } = await supabase.rpc('create_trial_if_needed');
+    const { data, error } = await supabase.rpc("create_trial_if_needed");
 
     if (error) {
-      console.warn('Lỗi gọi RPC create_trial_if_needed:', error.message);
+      console.warn("Lỗi gọi RPC create_trial_if_needed:", error.message);
       return null;
     }
 
@@ -184,7 +195,7 @@ export const createTrialIfNeeded = async () => {
 
     return null;
   } catch (err) {
-    console.warn('Lỗi kết nối RPC tạo trial:', err.message);
+    console.warn("Lỗi kết nối RPC tạo trial:", err.message);
     return null;
   }
 };
@@ -200,21 +211,21 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
   const c_free_limit = 256 * 1024 * 1024; // 268,435,456 bytes
 
   // 1. No subscription record or FREE plan: Valid forever at 256 MB Free tier
-  if (!subscription || subscription.plan === 'FREE' || !subscription.plan) {
+  if (!subscription || subscription.plan === "FREE" || !subscription.plan) {
     return {
       valid: true,
       localValid: true,
       status: SUBSCRIPTION_STATUS.ACTIVE,
-      plan: 'Free · 256 MB',
-      planId: 'FREE_256MB',
+      plan: "Free · 256 MB",
+      planId: "FREE_256MB",
       storageLimit: c_free_limit,
       remainingDays: null,
-      expirationDate: 'Vĩnh viễn',
+      expirationDate: "Vĩnh viễn",
       isPaid: false,
       isDowngraded: false,
       canUpload: storageUsed < c_free_limit,
       overQuota: storageUsed > c_free_limit,
-      reason: 'FREE_TIER_ACTIVE',
+      reason: "FREE_TIER_ACTIVE",
     };
   }
 
@@ -227,21 +238,24 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
       const trialEnd = new Date(subscription.trial_end_at);
       if (now < trialEnd) {
         const diffMs = trialEnd.getTime() - now.getTime();
-        const remainingDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        const remainingDays = Math.max(
+          1,
+          Math.ceil(diffMs / (1000 * 60 * 60 * 24)),
+        );
         return {
           valid: true,
           localValid: true,
           status: SUBSCRIPTION_STATUS.TRIAL,
-          plan: subscription.plan || 'Free Trial 30 Ngày',
+          plan: subscription.plan || "Free Trial 30 Ngày",
           planId: planInfo.id,
           storageLimit: planInfo.storageBytes,
           remainingDays,
-          expirationDate: trialEnd.toLocaleDateString('vi-VN'),
+          expirationDate: trialEnd.toLocaleDateString("vi-VN"),
           isPaid: false,
           isDowngraded: false,
           canUpload: storageUsed < planInfo.storageBytes,
           overQuota: storageUsed > planInfo.storageBytes,
-          reason: 'TRIAL_ACTIVE',
+          reason: "TRIAL_ACTIVE",
         };
       }
     }
@@ -250,17 +264,17 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
     return {
       valid: true,
       localValid: true,
-      status: 'DOWNGRADED_FREE',
-      plan: 'Free · 256 MB',
-      planId: 'FREE_256MB',
+      status: "DOWNGRADED_FREE",
+      plan: "Free · 256 MB",
+      planId: "FREE_256MB",
       storageLimit: c_free_limit,
       remainingDays: 0,
-      expirationDate: 'Dùng thử đã kết thúc (Về gói Miễn Phí)',
+      expirationDate: "Dùng thử đã kết thúc (Về gói Miễn Phí)",
       isPaid: false,
       isDowngraded: true,
       canUpload: storageUsed < c_free_limit,
       overQuota: storageUsed > c_free_limit,
-      reason: 'TRIAL_EXPIRED_DOWNGRADED_TO_FREE',
+      reason: "TRIAL_EXPIRED_DOWNGRADED_TO_FREE",
     };
   }
 
@@ -276,19 +290,22 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
         planId: planInfo.id,
         storageLimit: planInfo.storageBytes,
         remainingDays: null,
-        expirationDate: 'Vĩnh viễn',
+        expirationDate: "Vĩnh viễn",
         isPaid: planInfo.priceValue > 0,
         isDowngraded: false,
         canUpload: storageUsed < planInfo.storageBytes,
         overQuota: storageUsed > planInfo.storageBytes,
-        reason: 'ACTIVE_PERMANENT',
+        reason: "ACTIVE_PERMANENT",
       };
     }
 
     const periodEnd = new Date(subscription.current_period_end);
     if (now < periodEnd) {
       const diffMs = periodEnd.getTime() - now.getTime();
-      const remainingDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      const remainingDays = Math.max(
+        1,
+        Math.ceil(diffMs / (1000 * 60 * 60 * 24)),
+      );
       return {
         valid: true,
         localValid: true,
@@ -297,12 +314,12 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
         planId: planInfo.id,
         storageLimit: planInfo.storageBytes,
         remainingDays,
-        expirationDate: periodEnd.toLocaleDateString('vi-VN'),
+        expirationDate: periodEnd.toLocaleDateString("vi-VN"),
         isPaid: true,
         isDowngraded: false,
         canUpload: storageUsed < planInfo.storageBytes,
         overQuota: storageUsed > planInfo.storageBytes,
-        reason: 'PAID_ACTIVE',
+        reason: "PAID_ACTIVE",
       };
     }
 
@@ -311,18 +328,18 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
     return {
       valid: true,
       localValid: true,
-      status: 'DOWNGRADED_FREE',
-      plan: `Free · 256 MB (${planInfo.name.split('·')[0].trim()} hết hạn)`,
-      planId: 'FREE_256MB',
+      status: "DOWNGRADED_FREE",
+      plan: `Free · 256 MB (${planInfo.name.split("·")[0].trim()} hết hạn)`,
+      planId: "FREE_256MB",
       previousPlan: planInfo.name,
       storageLimit: c_free_limit,
       remainingDays: 0,
-      expirationDate: periodEnd.toLocaleDateString('vi-VN'),
+      expirationDate: periodEnd.toLocaleDateString("vi-VN"),
       isPaid: false,
       isDowngraded: true,
       canUpload: storageUsed < c_free_limit,
       overQuota: storageUsed > c_free_limit,
-      reason: 'PAID_EXPIRED_DOWNGRADED_TO_FREE',
+      reason: "PAID_EXPIRED_DOWNGRADED_TO_FREE",
     };
   }
 
@@ -332,21 +349,24 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
       const periodEnd = new Date(subscription.current_period_end);
       if (now < periodEnd) {
         const diffMs = periodEnd.getTime() - now.getTime();
-        const remainingDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        const remainingDays = Math.max(
+          1,
+          Math.ceil(diffMs / (1000 * 60 * 60 * 24)),
+        );
         return {
           valid: true,
           localValid: true,
-          status: 'CANCELLED_ACTIVE',
+          status: "CANCELLED_ACTIVE",
           plan: planInfo.name,
           planId: planInfo.id,
           storageLimit: planInfo.storageBytes,
           remainingDays,
-          expirationDate: periodEnd.toLocaleDateString('vi-VN'),
+          expirationDate: periodEnd.toLocaleDateString("vi-VN"),
           isPaid: true,
           isDowngraded: false,
           canUpload: storageUsed < planInfo.storageBytes,
           overQuota: storageUsed > planInfo.storageBytes,
-          reason: 'CANCELLED_IN_GRACE_PERIOD',
+          reason: "CANCELLED_IN_GRACE_PERIOD",
         };
       }
     }
@@ -354,19 +374,19 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
     return {
       valid: true,
       localValid: true,
-      status: 'DOWNGRADED_FREE',
-      plan: 'Free · 256 MB',
-      planId: 'FREE_256MB',
+      status: "DOWNGRADED_FREE",
+      plan: "Free · 256 MB",
+      planId: "FREE_256MB",
       storageLimit: c_free_limit,
       remainingDays: 0,
       expirationDate: subscription.current_period_end
-        ? new Date(subscription.current_period_end).toLocaleDateString('vi-VN')
-        : 'Đã hủy',
+        ? new Date(subscription.current_period_end).toLocaleDateString("vi-VN")
+        : "Đã hủy",
       isPaid: false,
       isDowngraded: true,
       canUpload: storageUsed < c_free_limit,
       overQuota: storageUsed > c_free_limit,
-      reason: 'CANCELLED_DOWNGRADED_TO_FREE',
+      reason: "CANCELLED_DOWNGRADED_TO_FREE",
     };
   }
 
@@ -375,16 +395,16 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
     valid: true,
     localValid: true,
     status: SUBSCRIPTION_STATUS.ACTIVE,
-    plan: 'Free · 256 MB',
-    planId: 'FREE_256MB',
+    plan: "Free · 256 MB",
+    planId: "FREE_256MB",
     storageLimit: c_free_limit,
     remainingDays: null,
-    expirationDate: 'Vĩnh viễn',
+    expirationDate: "Vĩnh viễn",
     isPaid: false,
     isDowngraded: false,
     canUpload: storageUsed < c_free_limit,
     overQuota: storageUsed > c_free_limit,
-    reason: 'DEFAULT_FREE_TIER',
+    reason: "DEFAULT_FREE_TIER",
   };
 };
 
@@ -398,10 +418,10 @@ export const getOrInitSubscription = async (user) => {
       access: {
         valid: false,
         status: SUBSCRIPTION_STATUS.EXPIRED,
-        plan: 'NONE',
+        plan: "NONE",
         remainingDays: 0,
         expirationDate: null,
-        reason: 'NO_USER',
+        reason: "NO_USER",
       },
     };
   }
@@ -437,8 +457,8 @@ export const getOrInitSubscription = async (user) => {
  * NEVER fakes ACTIVE on the client!
  */
 export const requestSubscriptionPurchase = async ({
-  planId = 'MONTHLY_VAULT',
-  provider = 'GOOGLE_PLAY',
+  planId = "MONTHLY_VAULT",
+  provider = "GOOGLE_PLAY",
   receiptToken = null,
 } = {}) => {
   try {
@@ -447,18 +467,18 @@ export const requestSubscriptionPurchase = async ({
     } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
-      return { success: false, error: 'Chưa đăng nhập tài khoản' };
+      return { success: false, error: "Chưa đăng nhập tài khoản" };
     }
 
     const response = await fetch(VERIFY_SUBSCRIPTION_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        action: 'verify-purchase',
-        platform: provider === 'APPLE' ? 'app_store' : 'google_play',
+        action: "verify-purchase",
+        platform: provider === "APPLE" ? "app_store" : "google_play",
         productId: planId,
         receiptToken,
       }),
@@ -472,7 +492,7 @@ export const requestSubscriptionPurchase = async ({
         configured: data.configured !== false,
         error:
           data.error ||
-          'Cổng thanh toán In-App chưa được cấu hình trên máy chủ backend (Payment provider not configured).',
+          "Cổng thanh toán In-App chưa được cấu hình trên máy chủ backend (Payment provider not configured).",
       };
     }
 
@@ -500,18 +520,18 @@ export const restorePurchases = async () => {
     } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
-      return { success: false, error: 'Chưa đăng nhập tài khoản' };
+      return { success: false, error: "Chưa đăng nhập tài khoản" };
     }
 
     const response = await fetch(VERIFY_SUBSCRIPTION_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        action: 'restore-purchase',
-        platform: 'google_play',
+        action: "restore-purchase",
+        platform: "google_play",
       }),
     });
 
@@ -523,7 +543,7 @@ export const restorePurchases = async () => {
         configured: data.configured !== false,
         error:
           data.error ||
-          'Không tìm thấy giao dịch mua trước đó hoặc cổng thanh toán chưa được cấu hình.',
+          "Không tìm thấy giao dịch mua trước đó hoặc cổng thanh toán chưa được cấu hình.",
       };
     }
 
@@ -541,45 +561,45 @@ export const restorePurchases = async () => {
 };
 
 /**
- * Kích hoạt gói cước sau khi người dùng xác nhận chuyển khoản ngân hàng (VietQR)
+ * Submit a VietQR transfer for server-side review.
+ * This deliberately does not activate a subscription from the client.
  */
-export const activateManualSubscription = async (user, planId = 'STANDARD_1_5GB') => {
-  if (!user?.id) return { success: false, error: 'Chưa đăng nhập tài khoản' };
-
-  const plan = getPlanById(planId);
-  const now = new Date();
-  const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-  const updatedSubscription = {
-    user_id: user.id,
-    status: SUBSCRIPTION_STATUS.ACTIVE,
-    plan: plan.name,
-    plan_id: plan.id,
-    storage_limit: plan.storageBytes,
-    current_period_start: now.toISOString(),
-    current_period_end: nextMonth.toISOString(),
-    updated_at: now.toISOString(),
-  };
-
-  try {
-    // 1. Lưu vào Supabase bảng subscriptions nếu có kết nối
-    await supabase.from('subscriptions').upsert(updatedSubscription);
-    // 2. Đồng bộ authoritative storage_limit vào profiles
-    await supabase
-      .from('profiles')
-      .update({ storage_limit: plan.storageBytes, updated_at: now.toISOString() })
-      .eq('id', user.id);
-  } catch (err) {
-    console.warn('Lỗi đồng bộ subscription lên Supabase:', err.message);
+export const submitManualPayment = async ({ planId, amount, transferMemo }) => {
+  if (!planId || !amount || !transferMemo) {
+    return { success: false, error: "Thiếu thông tin yêu cầu thanh toán." };
   }
 
-  // 3. Lưu vào local cache AsyncStorage
-  await setCachedSubscription(user.id, updatedSubscription);
+  const { data, error } = await supabase.rpc("create_manual_payment_request", {
+    p_plan_id: getPlanById(planId).id,
+    p_amount: amount,
+    p_transfer_memo: transferMemo,
+  });
+
+  if (error) {
+    return {
+      success: false,
+      error: "Không thể gửi yêu cầu xác minh thanh toán.",
+    };
+  }
+
+  if (!data?.success) {
+    return {
+      success: false,
+      error: data?.error || "Không thể gửi yêu cầu xác minh thanh toán.",
+    };
+  }
 
   return {
     success: true,
-    subscription: updatedSubscription,
-    access: evaluateAccess(updatedSubscription),
+    status: data.status || "PENDING",
+    request: data.request,
   };
 };
 
+export const getLatestManualPayment = async () => {
+  const { data, error } = await supabase.rpc("get_latest_payment_request");
+  if (error) return { success: false, error: error.message };
+  return (
+    data || { success: false, error: "Không nhận được trạng thái thanh toán." }
+  );
+};
