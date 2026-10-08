@@ -25,6 +25,7 @@ export default function AccountScreen({
   onSyncNow,
   onOpenSubscription,
   onOpenSecuritySettings,
+  onOpenPaymentHistory,
   isSyncing,
   lastSync,
 }) {
@@ -266,6 +267,17 @@ export default function AccountScreen({
                     ☁️ Đồng bộ dữ liệu ngay
                   </Text>
                 )}
+              </TouchableOpacity>
+            ) : null}
+
+            {onOpenPaymentHistory ? (
+              <TouchableOpacity
+                style={styles.paymentHistoryButton}
+                onPress={onOpenPaymentHistory}
+              >
+                <Text style={styles.paymentHistoryButtonText}>
+                  💳 Lịch sử giao dịch
+                </Text>
               </TouchableOpacity>
             ) : null}
 
@@ -576,6 +588,20 @@ const styles = StyleSheet.create({
     color: "#93C5FD",
     fontSize: 14,
     fontWeight: "600",
+  },
+  paymentHistoryButton: {
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.35)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  paymentHistoryButtonText: {
+    color: "#F59E0B",
+    fontSize: 14,
+    fontWeight: "700",
   },
   guideButton: {
     backgroundColor: "rgba(56, 189, 248, 0.12)",

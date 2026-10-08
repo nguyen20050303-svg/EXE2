@@ -603,3 +603,57 @@ export const getLatestManualPayment = async () => {
     data || { success: false, error: "Không nhận được trạng thái thanh toán." }
   );
 };
+
+/**
+ * Gọi Edge Function để tạo PayOS checkout link
+ */
+export const createPayosPayment = async ({ planId, amount }) => {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { success: false, error: "Chưa đăng nhập tài khoản" };
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/payos-checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ planId, amount }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, error: data.error || "Lỗi tạo mã thanh toán PayOS" };
+    }
+
+    return { success: true, checkoutUrl: data.checkoutUrl };
+  } catch (err) {
+    return { success: false, error: `Lỗi kết nối PayOS: ${err.message}` };
+  }
+};
+
+/**
+ * Lấy lịch sử thanh toán của user hiện tại
+ */
+export const getPaymentHistory = async () => {
+  const { data: { user }, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !user) return { success: false, error: "Chưa đăng nhập" };
+
+  const { data, error } = await supabase
+    .from("payment_requests")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data };
+};

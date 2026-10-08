@@ -12,7 +12,9 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Linking,
 } from "react-native";
+import { WebView } from "react-native-webview";
 import * as Clipboard from "expo-clipboard";
 import { AuthContext } from "../../context/AuthContext";
 import {
@@ -23,6 +25,7 @@ import {
   requestSubscriptionPurchase,
   restorePurchases,
   submitManualPayment,
+  createPayosPayment,
   SUBSCRIPTION_STATUS,
 } from "../../services/subscriptionService";
 import {
@@ -46,6 +49,8 @@ export default function SubscriptionScreen({ onBack = null }) {
   const [selectedPlanId, setSelectedPlanId] = useState("STANDARD_1_5GB");
   const [loadingAction, setLoadingAction] = useState(false);
   const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [payosUrl, setPayosUrl] = useState(null);
+  const [payosModalVisible, setPayosModalVisible] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState("NONE");
   const [storageUsage, setStorageUsage] = useState({
@@ -91,12 +96,27 @@ export default function SubscriptionScreen({ onBack = null }) {
     void logSelectPlan(plan.id, plan.priceValue);
   };
 
-  const handleOpenQRModal = () => {
-    void logOpenVietQRPayment(selectedPlan.id, selectedPlan.priceValue);
-    setQrModalVisible(true);
-    void getLatestManualPayment().then((result) => {
-      if (result.success) setPaymentStatus(result.status || "NONE");
-    });
+  const handleOpenPayosCheckout = async () => {
+    try {
+      setLoadingAction(true);
+      void logOpenVietQRPayment(selectedPlan.id, selectedPlan.priceValue);
+      const res = await createPayosPayment({
+        planId: selectedPlan.id,
+        amount: selectedPlan.priceValue,
+      });
+
+      if (res.success && res.checkoutUrl) {
+        setPaymentStatus("PENDING");
+        setPayosUrl(res.checkoutUrl);
+        setPayosModalVisible(true);
+      } else {
+        Alert.alert("Thông báo", res.error || "Không thể tạo liên kết thanh toán lúc này.");
+      }
+    } catch (err) {
+      Alert.alert("Lỗi", `Đã có lỗi xảy ra: ${err.message}`);
+    } finally {
+      setLoadingAction(false);
+    }
   };
 
   const handleCopy = async (text, fieldName) => {
@@ -387,7 +407,7 @@ export default function SubscriptionScreen({ onBack = null }) {
         {/* Primary Action: Thanh toán Chuyển khoản VietQR */}
         <TouchableOpacity
           style={styles.qrPayButton}
-          onPress={handleOpenQRModal}
+          onPress={handleOpenPayosCheckout}
           activeOpacity={0.85}
         >
           <Text style={styles.qrPayButtonIcon}>🏦</Text>
@@ -660,6 +680,40 @@ export default function SubscriptionScreen({ onBack = null }) {
           </View>
         </View>
       </Modal>
+      <Modal
+        visible={payosModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setPayosModalVisible(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <View style={styles.webviewHeader}>
+            <TouchableOpacity onPress={() => setPayosModalVisible(false)} style={styles.webviewCloseBtn}>
+              <Text style={styles.webviewCloseText}>Đóng</Text>
+            </TouchableOpacity>
+            <Text style={styles.webviewTitle}>Thanh toán an toàn</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          {payosUrl && (
+            <WebView
+              source={{ uri: payosUrl }}
+              style={{ flex: 1 }}
+              onNavigationStateChange={(navState) => {
+                if (navState.url.includes('hidder://payment/success')) {
+                  setPayosModalVisible(false);
+                  setPayosUrl(null);
+                  handleCheckPayment();
+                  Alert.alert("Thành công", "Đã ghi nhận yêu cầu! Đang kiểm tra thanh toán...");
+                } else if (navState.url.includes('hidder://payment/cancel')) {
+                  setPayosModalVisible(false);
+                  setPayosUrl(null);
+                }
+              }}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -1189,5 +1243,29 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     fontSize: 14,
     fontWeight: "600",
+  },
+  webviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+    backgroundColor: "#fff"
+  },
+  webviewCloseBtn: {
+    paddingVertical: 8,
+    width: 60,
+  },
+  webviewCloseText: {
+    color: "#3B82F6",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  webviewTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#0F172A",
   },
 });

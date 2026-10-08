@@ -5,6 +5,7 @@ import { AuthContext, AuthProvider } from './src/context/AuthContext';
 import SetupWizard from './src/components/SetupWizard';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import SubscriptionScreen from './src/screens/subscription/SubscriptionScreen';
+import PaymentHistoryScreen from './src/screens/subscription/PaymentHistoryScreen';
 import NoteListScreen from './src/screens/public/NoteListScreen';
 import NoteDetailScreen from './src/screens/public/NoteDetailScreen';
 import CalculatorScreen from './src/screens/public/CalculatorScreen';
@@ -632,6 +633,10 @@ function MainAppContent() {
     );
   }
 
+  if (currentScreen === 'payment-history') {
+    return <PaymentHistoryScreen onBack={() => setCurrentScreen('account')} />;
+  }
+
   if (currentScreen === 'account') {
     return (
       <>
@@ -641,6 +646,7 @@ function MainAppContent() {
           onSyncNow={handleSyncCloud}
           onOpenSubscription={() => setCurrentScreen('subscription')}
           onOpenSecuritySettings={() => setCurrentScreen('hidden-settings')}
+          onOpenPaymentHistory={() => setCurrentScreen('payment-history')}
           isSyncing={isSyncing}
           lastSync={lastSync}
         />
