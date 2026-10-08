@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 let DynamicAppIconModule = null;
 
@@ -30,6 +30,20 @@ export const syncAppIconWithDisguise = async (disguiseType) => {
     // Apply as soon as the app enters the background so the launcher label and icon
     // switch together when the user returns to the Home screen.
     const res = await DynamicAppIconModule.setAppIcon(targetIcon, false);
+
+    // Retry once on the real background transition. Some Android launchers only
+    // refresh launcher aliases after the activity has actually paused.
+    if (AppState.currentState === "active") {
+      let retried = false;
+      const subscription = AppState.addEventListener("change", (state) => {
+        if (!retried && state === "background") {
+          retried = true;
+          subscription.remove();
+          void DynamicAppIconModule.setAppIcon(targetIcon, false);
+        }
+      });
+    }
+
     return Boolean(res);
   } catch (err) {
     console.warn(
