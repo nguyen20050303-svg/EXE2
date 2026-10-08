@@ -1401,13 +1401,16 @@ await it("43. App Icon Service: appIcon.js xử lý đổi icon an toàn cho m�
   );
   assert(
     appIconCode.includes(
-      "validDisguises = ['calculator', 'notes', 'weather', 'calendar']",
-    ),
+      'validDisguises = ["calculator", "notes", "weather", "calendar"]',
+    ) ||
+      appIconCode.includes(
+        "validDisguises = ['calculator', 'notes', 'weather', 'calendar']",
+      ),
     "appIcon.js phải kiểm tra 4 lớp vỏ hợp lệ",
   );
   assert(
-    appIconCode.includes("setAppIcon(targetIcon, true)"),
-    "appIcon.js phải gọi setAppIcon với background transition",
+    appIconCode.includes("setAppIcon(targetIcon, false)"),
+    "appIcon.js phải cập nhật alias ngay khi app vào nền",
   );
   assert(
     appIconCode.includes("catch (err)"),
