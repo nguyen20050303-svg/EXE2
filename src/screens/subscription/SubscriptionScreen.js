@@ -68,10 +68,13 @@ export default function SubscriptionScreen({ onBack = null }) {
     paidPlans[1] ||
     STORAGE_PLANS[2];
 
-  // Tải dung lượng Cloud thực tế của người dùng
+  // Tải dung lượng Cloud thực tế của người dùng và cập nhật subscription
   useEffect(() => {
+    if (refreshSubscription) {
+      void refreshSubscription();
+    }
     void getUserStorageUsage().then(setStorageUsage);
-  }, [subscriptionAccess]);
+  }, []);
 
   // Bắn sự kiện GA4 khi người dùng mở màn hình Mua thêm dung lượng
   useEffect(() => {
@@ -298,19 +301,23 @@ export default function SubscriptionScreen({ onBack = null }) {
           ) : null}
         </View>
 
-        {/* Local Storage Free Forever Banner */}
-        <View style={styles.localFreeBanner}>
-          <Text style={styles.localFreeIcon}>💾</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.localFreeTitle}>
-              Lưu trữ trên thiết bị: Miễn phí trọn đời
-            </Text>
-            <Text style={styles.localFreeDesc}>
-              Toàn bộ ảnh, video, ghi chú, mật khẩu cục bộ không bao giờ bị khóa
-              hay giới hạn dung lượng.
+        {/* Account & Current Subscription Status Card (Moved to Top) */}
+        <View style={styles.statusCardGradient}>
+          <Text style={styles.statusCardTitle}>GÓI ĐANG SỬ DỤNG</Text>
+          <Text style={styles.statusCardPlanName}>
+            {isPaidActive ? subscriptionAccess?.plan?.toUpperCase() : "FREE · 256 MB"}
+          </Text>
+          <View style={styles.statusCardStorageWrap}>
+            <Text style={styles.statusCardStorageLabel}>
+              {formatBytes(storageUsage.storage_used)} / {formatBytes(storageUsage.storage_limit)}
             </Text>
           </View>
+          <Text style={styles.statusCardExpiration}>
+            {expirationText}
+          </Text>
         </View>
+
+
 
         {/* Cloud Storage Usage Card with Progress Bar */}
         <View style={styles.quotaCard}>
@@ -374,14 +381,27 @@ export default function SubscriptionScreen({ onBack = null }) {
         <View style={styles.plansList}>
           {paidPlans.map((plan) => {
             const isSelected = selectedPlanId === plan.id;
+            const isCurrentPlan = isPaidActive && subscriptionAccess?.planId === plan.id;
+            const isLowerPlan = isPaidActive && plan.storageBytes < subscriptionAccess?.storageLimit;
+            
             return (
               <TouchableOpacity
                 key={plan.id}
                 style={[
                   styles.storageCard,
                   isSelected && styles.storageCardActive,
+                  isLowerPlan && { opacity: 0.5 },
                 ]}
-                onPress={() => handlePlanSelect(plan)}
+                onPress={() => {
+                  if (isLowerPlan) {
+                    Alert.alert(
+                      "Không thể hạ cấp",
+                      "Bạn đang sử dụng gói cao hơn. Vui lòng chờ gói hiện tại hết hạn để có thể đăng ký gói này."
+                    );
+                    return;
+                  }
+                  handlePlanSelect(plan);
+                }}
                 activeOpacity={0.8}
               >
                 <View style={styles.cardLeftCol}>
@@ -390,14 +410,24 @@ export default function SubscriptionScreen({ onBack = null }) {
                 </View>
 
                 <View style={styles.cardRightCol}>
-                  <Text
-                    style={[
-                      styles.cardPriceText,
-                      isSelected && styles.cardPriceTextActive,
-                    ]}
-                  >
-                    {plan.priceText}
-                  </Text>
+                  {isCurrentPlan ? (
+                    <View style={styles.currentPlanBadge}>
+                      <Text style={styles.currentPlanBadgeText}>Đang sử dụng</Text>
+                    </View>
+                  ) : isLowerPlan ? (
+                    <View style={[styles.currentPlanBadge, { backgroundColor: '#64748B' }]}>
+                      <Text style={styles.currentPlanBadgeText}>Đợi hết hạn</Text>
+                    </View>
+                  ) : (
+                    <Text
+                      style={[
+                        styles.cardPriceText,
+                        isSelected && styles.cardPriceTextActive,
+                      ]}
+                    >
+                      {plan.priceText}
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -405,23 +435,28 @@ export default function SubscriptionScreen({ onBack = null }) {
         </View>
 
         {/* Primary Action: Thanh toán Chuyển khoản VietQR */}
-        <TouchableOpacity
-          style={styles.qrPayButton}
-          onPress={handleOpenPayosCheckout}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.qrPayButtonIcon}>🏦</Text>
-          <View style={styles.qrPayButtonTextWrap}>
-            <Text style={styles.qrPayButtonTitle}>
-              Thanh toán Chuyển khoản VietQR (Khuyên dùng)
-            </Text>
-            <Text style={styles.qrPayButtonSub}>
-              Gói {selectedPlan?.name?.split("·")[0]?.trim()} •{" "}
-              {selectedPlan?.priceText}
-            </Text>
-          </View>
-          <Text style={styles.qrPayButtonArrow}>›</Text>
-        </TouchableOpacity>
+        {isPaidActive && subscriptionAccess?.planId === selectedPlanId ? null : (
+          <TouchableOpacity
+            style={[
+              styles.qrPayButton,
+              (isPaidActive && selectedPlan?.storageBytes < subscriptionAccess?.storageLimit) && { display: 'none' }
+            ]}
+            onPress={handleOpenPayosCheckout}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.qrPayButtonIcon}>🏦</Text>
+            <View style={styles.qrPayButtonTextWrap}>
+              <Text style={styles.qrPayButtonTitle}>
+                Thanh toán Chuyển khoản VietQR (Khuyên dùng)
+              </Text>
+              <Text style={styles.qrPayButtonSub}>
+                Gói {selectedPlan?.name?.split("·")[0]?.trim()} •{" "}
+                {selectedPlan?.priceText}
+              </Text>
+            </View>
+            <Text style={styles.qrPayButtonArrow}>›</Text>
+          </TouchableOpacity>
+        )}
 
         {paymentStatus === "PENDING" ? (
           <TouchableOpacity
@@ -465,44 +500,7 @@ export default function SubscriptionScreen({ onBack = null }) {
           </Text>
         </TouchableOpacity>
 
-        {/* Account & Current Subscription Status Card */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Tài khoản:</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {currentUser?.email || "N/A"}
-            </Text>
-          </View>
 
-          <View style={styles.divider} />
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Tình trạng hiện tại:</Text>
-            <View style={badgeStyle}>
-              <Text style={badgeTextStyle}>{badgeText}</Text>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Thời hạn:</Text>
-            <Text
-              style={[
-                styles.infoValue,
-                {
-                  color: isDowngraded
-                    ? "#F87171"
-                    : isPaidActive
-                      ? "#4ADE80"
-                      : "#38BDF8",
-                },
-              ]}
-            >
-              {expirationText}
-            </Text>
-          </View>
-        </View>
 
         {/* Disguise Shell Return */}
         {onBack ? (
@@ -1267,5 +1265,74 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#0F172A",
+  },
+  statusCardGradient: {
+    backgroundColor: "#1E293B",
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.3)",
+    shadowColor: "#38BDF8",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 5,
+    alignItems: "center",
+  },
+  statusCardAccount: {
+    color: "#94A3B8",
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  statusCardTitle: {
+    color: "#F8FAFC",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    marginBottom: 4,
+    opacity: 0.8,
+  },
+  statusCardPlanName: {
+    color: "#38BDF8",
+    fontSize: 26,
+    fontWeight: "900",
+    marginBottom: 16,
+  },
+  statusCardStorageWrap: {
+    backgroundColor: "rgba(15, 23, 42, 0.5)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  statusCardStorageLabel: {
+    color: "#E2E8F0",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  statusCardDivider: {
+    height: 1,
+    width: "100%",
+    backgroundColor: "rgba(148, 163, 184, 0.1)",
+    marginBottom: 16,
+  },
+  statusCardExpiration: {
+    color: "#10B981",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  currentPlanBadge: {
+    backgroundColor: "rgba(56, 189, 248, 0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.3)",
+  },
+  currentPlanBadgeText: {
+    color: "#38BDF8",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

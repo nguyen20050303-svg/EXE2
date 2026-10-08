@@ -675,6 +675,7 @@ function MainAppContent() {
         onSyncCloud={handleSyncCloud}
         isSyncing={isSyncing}
         lastSync={lastSync}
+        subscriptionAccess={subscriptionAccess}
       />
     </>
   );

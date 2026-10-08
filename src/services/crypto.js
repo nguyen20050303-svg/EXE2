@@ -3,6 +3,7 @@ import { gcm } from '@noble/ciphers/aes.js';
 import b64 from 'base64-js';
 import * as FileSystem from 'expo-file-system/legacy';
 import { secureDeleteItem, secureGetItem, secureSetItem } from './secureStorage';
+import { supabase } from './supabase.js';
 
 // ==========================================
 // 1. LEGACY SECRET CODE UTILITIES (PRESERVED)
@@ -123,17 +124,48 @@ export const clearActiveMasterKey = () => {
 };
 
 /**
- * Retrieve User's Master Encryption Key from SecureStore (namespaced by userId)
+ * Retrieve User's Master Encryption Key from SecureStore, fallback to Supabase
  */
 export const getUserMasterKey = async (userId) => {
   if (!userId) return null;
   const storageKey = `hidder.master-key.${userId}`;
-  const hex = await secureGetItem(storageKey);
+  let hex = await secureGetItem(storageKey);
+  
+  if (!hex) {
+    // Try to fetch from Supabase if not on local device (New Device Login)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('master_key')
+        .eq('id', userId)
+        .maybeSingle();
+      
+      if (!error && data?.master_key) {
+        hex = data.master_key;
+        await secureSetItem(storageKey, hex);
+      }
+    } catch (err) {
+      console.warn('Lỗi lấy master key từ Supabase:', err.message);
+    }
+  } else {
+    // Device HAS the key locally. Let's make sure it's backed up to Supabase.
+    // (This guarantees the old device uploads its key for the new device to use).
+    try {
+      const { data } = await supabase.from('profiles').select('master_key').eq('id', userId).maybeSingle();
+      if (!data?.master_key) {
+        await supabase.from('profiles').update({ master_key: hex }).eq('id', userId);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
   if (!hex) return null;
+  
   try {
     return hexToBytes(hex);
   } catch (err) {
-    console.error('Lỗi phân tích Master Key từ SecureStore:', err);
+    console.error('Lỗi phân tích Master Key:', err);
     return null;
   }
 };
@@ -157,8 +189,16 @@ export const getOrCreateUserMasterKey = async (userId) => {
   const hex = bytesToHex(newKey);
   const storageKey = `hidder.master-key.${userId}`;
 
+  // Save locally
   await secureSetItem(storageKey, hex);
   setActiveMasterKey(newKey);
+
+  // Backup to Supabase for multi-device sync
+  try {
+    await supabase.from('profiles').update({ master_key: hex }).eq('id', userId);
+  } catch (err) {
+    console.warn('Lỗi backup master key lên Supabase:', err.message);
+  }
 
   return newKey;
 };

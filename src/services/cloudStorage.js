@@ -129,9 +129,6 @@ export const getUserStorageUsage = async () => {
   }
 };
 
-/**
- * 3. Request signed upload URL from backend/Edge Function
- */
 export const requestSignedUploadUrl = async ({
   fileId,
   category,
@@ -140,84 +137,53 @@ export const requestSignedUploadUrl = async ({
   sizeBytes,
 }) => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return { success: false, error: 'Chưa đăng nhập' };
     }
 
-    const response = await fetch(GCS_BACKEND_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        action: 'get-upload-url',
-        fileId,
-        category,
-        fileName,
-        mimeType,
-        sizeBytes,
-      }),
-    });
+    const categoryPath = String(category).toLowerCase();
+    const storagePath = `users/${user.id}/${categoryPath}/${fileId}`;
 
-    const data = await response.json();
+    // Use Supabase native Storage API
+    const { data, error } = await supabase.storage
+      .from('vault')
+      .createSignedUploadUrl(storagePath);
 
-    if (!response.ok) {
+    if (error) {
       return {
         success: false,
-        error: data.error || 'Lỗi yêu cầu Signed URL từ backend',
-        configured: data.configured !== false,
+        error: error.message || 'Lỗi yêu cầu Signed URL từ Supabase Storage',
+        configured: true,
       };
     }
 
     return {
       success: true,
       signedUrl: data.signedUrl,
-      storagePath: data.storagePath,
-      fileId: data.fileId,
+      storagePath: storagePath,
+      fileId: fileId,
     };
   } catch (err) {
     return {
       success: false,
-      error: `Không thể kết nối GCS Backend: ${err.message}`,
-      configured: false,
+      error: `Không thể kết nối Supabase Storage: ${err.message}`,
+      configured: true,
     };
   }
 };
 
 /**
- * 4. Request signed download URL from backend/Edge Function
+ * 4. Request signed download URL from Supabase Storage
  */
 export const requestSignedDownloadUrl = async (storagePath) => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { data, error } = await supabase.storage
+      .from('vault')
+      .createSignedUrl(storagePath, 3600); // 1 hour expiry
 
-    if (!session?.access_token) {
-      return { success: false, error: 'Chưa đăng nhập' };
-    }
-
-    const response = await fetch(GCS_BACKEND_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        action: 'get-download-url',
-        storagePath,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return { success: false, error: data.error || 'Lỗi lấy Signed Download URL' };
+    if (error) {
+      return { success: false, error: error.message || 'Lỗi lấy Signed Download URL' };
     }
 
     return { success: true, signedUrl: data.signedUrl };
@@ -227,32 +193,19 @@ export const requestSignedDownloadUrl = async (storagePath) => {
 };
 
 /**
- * 5. Request object deletion on Google Cloud Storage via backend
+ * 5. Request object deletion on Supabase Storage
  */
 export const requestDeleteFromCloud = async (storagePath) => {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const { error } = await supabase.storage
+      .from('vault')
+      .remove([storagePath]);
 
-    if (!session?.access_token) {
-      return { success: false, error: 'Chưa đăng nhập' };
+    if (error) {
+      return { success: false, error: error.message };
     }
 
-    const response = await fetch(GCS_BACKEND_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        action: 'delete-file',
-        storagePath,
-      }),
-    });
-
-    const data = await response.json();
-    return { success: response.ok, error: data?.error };
+    return { success: true };
   } catch (err) {
     return { success: false, error: err.message };
   }

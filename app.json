@@ -40,7 +40,7 @@
         "./plugins/withDisguiseIcons",
         {
           "calculator": {
-            "label": "Calculator",
+            "label": "Máy tính",
             "ios": "./assets/disguise-calculator.png",
             "android": {
               "foregroundImage": "./assets/disguise-calculator.png",
@@ -48,7 +48,7 @@
             }
           },
           "notes": {
-            "label": "Notes",
+            "label": "Ghi chú",
             "ios": "./assets/disguise-notes.png",
             "android": {
               "foregroundImage": "./assets/disguise-notes.png",
@@ -56,7 +56,7 @@
             }
           },
           "weather": {
-            "label": "Weather",
+            "label": "Thời tiết",
             "ios": "./assets/disguise-weather.png",
             "android": {
               "foregroundImage": "./assets/disguise-weather.png",
@@ -64,7 +64,7 @@
             }
           },
           "calendar": {
-            "label": "Calendar",
+            "label": "Lịch biểu",
             "ios": "./assets/disguise-calendar.png",
             "android": {
               "foregroundImage": "./assets/disguise-calendar.png",

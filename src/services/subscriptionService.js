@@ -52,15 +52,19 @@ export const STORAGE_PLANS = [
 export const getPlanById = (planId) => {
   if (!planId) return STORAGE_PLANS[0];
   const normalized = String(planId).toUpperCase();
-  if (
-    normalized === "PLUS_5GB" ||
-    normalized.includes("5GB") ||
-    normalized.includes("PREMIUM")
-  ) {
-    return STORAGE_PLANS[3];
-  }
+  
+  const exactMatch = STORAGE_PLANS.find(p => p.id === normalized || p.aliasId === normalized);
+  if (exactMatch) return exactMatch;
+
   if (normalized.includes("1_5GB") || normalized.includes("STANDARD")) {
     return STORAGE_PLANS[2];
+  }
+  if (
+    normalized === "PLUS_5GB" ||
+    normalized.includes("PREMIUM") ||
+    (normalized.includes("5GB") && !normalized.includes("1_5GB"))
+  ) {
+    return STORAGE_PLANS[3];
   }
   if (normalized.includes("500MB") || normalized.includes("BASIC")) {
     return STORAGE_PLANS[1];
@@ -210,11 +214,12 @@ export const createTrialIfNeeded = async () => {
 export const evaluateAccess = (subscription, storageUsed = 0) => {
   const c_free_limit = 256 * 1024 * 1024; // 268,435,456 bytes
 
-  // 1. No subscription record or FREE plan: Valid forever at 256 MB Free tier
-  if (!subscription || subscription.plan === "FREE" || !subscription.plan) {
+  // 1. No subscription record (Fallback)
+  if (!subscription) {
     return {
       valid: true,
       localValid: true,
+      hasPremiumAccess: false,
       status: SUBSCRIPTION_STATUS.ACTIVE,
       plan: "Free · 256 MB",
       planId: "FREE_256MB",
@@ -225,12 +230,32 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
       isDowngraded: false,
       canUpload: storageUsed < c_free_limit,
       overQuota: storageUsed > c_free_limit,
-      reason: "FREE_TIER_ACTIVE",
+      reason: "NO_SUBSCRIPTION_RECORD",
     };
   }
 
   const now = new Date();
   const planInfo = getPlanById(subscription.plan_id || subscription.plan);
+
+  // 1b. If it's explicitly the FREE plan and ACTIVE (Legacy user or Downgraded)
+  if (subscription.plan === "FREE" && subscription.status !== SUBSCRIPTION_STATUS.TRIAL) {
+    return {
+      valid: true,
+      localValid: true,
+      hasPremiumAccess: false,
+      status: SUBSCRIPTION_STATUS.ACTIVE,
+      plan: "Free · 256 MB",
+      planId: "FREE_256MB",
+      storageLimit: c_free_limit,
+      remainingDays: null,
+      expirationDate: "Vĩnh viễn",
+      isPaid: false,
+      isDowngraded: subscription.status === "DOWNGRADED_FREE",
+      canUpload: storageUsed < c_free_limit,
+      overQuota: storageUsed > c_free_limit,
+      reason: "FREE_TIER_ACTIVE",
+    };
+  }
 
   // 2. TRIAL Evaluation (Legacy or promotion trials)
   if (subscription.status === SUBSCRIPTION_STATUS.TRIAL) {
@@ -245,6 +270,7 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
         return {
           valid: true,
           localValid: true,
+          hasPremiumAccess: true, // TRIAL gives full premium access
           status: SUBSCRIPTION_STATUS.TRIAL,
           plan: subscription.plan || "Free Trial 30 Ngày",
           planId: planInfo.id,
@@ -264,6 +290,7 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
     return {
       valid: true,
       localValid: true,
+      hasPremiumAccess: false, // Locked out of premium features
       status: "DOWNGRADED_FREE",
       plan: "Free · 256 MB",
       planId: "FREE_256MB",
@@ -282,9 +309,11 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
   if (subscription.status === SUBSCRIPTION_STATUS.ACTIVE) {
     if (!subscription.current_period_end) {
       // No period end means permanent or free
+      const isFreeTier = planInfo.id === "FREE_256MB";
       return {
         valid: true,
         localValid: true,
+        hasPremiumAccess: !isFreeTier,
         status: SUBSCRIPTION_STATUS.ACTIVE,
         plan: planInfo.name,
         planId: planInfo.id,
@@ -295,7 +324,7 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
         isDowngraded: false,
         canUpload: storageUsed < planInfo.storageBytes,
         overQuota: storageUsed > planInfo.storageBytes,
-        reason: "ACTIVE_PERMANENT",
+        reason: isFreeTier ? "FREE_TIER_ACTIVE" : "ACTIVE_PERMANENT",
       };
     }
 
@@ -309,6 +338,7 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
       return {
         valid: true,
         localValid: true,
+        hasPremiumAccess: true, // Paid plan active
         status: SUBSCRIPTION_STATUS.ACTIVE,
         plan: planInfo.name,
         planId: planInfo.id,
@@ -328,6 +358,7 @@ export const evaluateAccess = (subscription, storageUsed = 0) => {
     return {
       valid: true,
       localValid: true,
+      hasPremiumAccess: false, // Locked out of premium features
       status: "DOWNGRADED_FREE",
       plan: `Free · 256 MB (${planInfo.name.split("·")[0].trim()} hết hạn)`,
       planId: "FREE_256MB",

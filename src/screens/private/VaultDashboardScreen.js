@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  Alert,
   View,
 } from 'react-native';
 import { getPendingQueueCount, subscribeToSyncChanges } from '../../services/syncManager';
@@ -27,8 +28,10 @@ export default function VaultDashboardScreen({
   onSyncCloud,
   isSyncing,
   lastSync,
+  subscriptionAccess,
 }) {
   const isDecoy = mode === 'decoy';
+  const hasPremium = subscriptionAccess?.hasPremiumAccess ?? true; // Defaults to true if undefined
   const [pendingCount, setPendingCount] = useState(0);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
@@ -41,6 +44,18 @@ export default function VaultDashboardScreen({
       return unsub;
     }
   }, [currentUser, isSyncing]);
+
+  const handlePremiumAction = (action) => {
+    if (hasPremium) {
+      action();
+    } else {
+      Alert.alert(
+        'Tính năng Premium',
+        'Tính năng này đã bị khóa do gói Dùng thử của bạn đã kết thúc. Vui lòng nâng cấp gói trả phí để tiếp tục sử dụng.',
+        [{ text: 'Đã hiểu', style: 'cancel' }]
+      );
+    }
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -88,7 +103,9 @@ export default function VaultDashboardScreen({
         <View style={styles.syncCard}>
           <View style={styles.syncCardHeader}>
             <View style={styles.syncCardInfo}>
-              <Text style={styles.syncTitle}>☁️ Supabase Cloud Sync</Text>
+              <Text style={styles.syncTitle}>
+                ☁️ Supabase Cloud Sync {!hasPremium && '🔒'}
+              </Text>
               <Text style={styles.syncSubtitle}>
                 {pendingCount > 0
                   ? `⏳ Có ${pendingCount} mục chờ đồng bộ lên Cloud`
@@ -98,14 +115,16 @@ export default function VaultDashboardScreen({
               </Text>
             </View>
             <TouchableOpacity
-              style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]}
+              style={[styles.syncButton, (isSyncing || !hasPremium) && styles.syncButtonDisabled]}
               disabled={isSyncing}
-              onPress={onSyncCloud}
+              onPress={() => handlePremiumAction(onSyncCloud)}
             >
               {isSyncing ? (
                 <ActivityIndicator size="small" color="#0F172A" />
               ) : (
-                <Text style={styles.syncButtonText}>Đồng bộ ngay</Text>
+                <Text style={styles.syncButtonText}>
+                  {hasPremium ? 'Đồng bộ ngay' : 'Đã khóa'}
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -116,7 +135,9 @@ export default function VaultDashboardScreen({
       {!isDecoy && onChangeDisguise ? (
         <View style={styles.disguiseCard}>
           <View style={styles.disguiseHeaderRow}>
-            <Text style={styles.disguiseHeaderTitle}>🎭 Lớp vỏ ngụy trang bên ngoài</Text>
+            <Text style={styles.disguiseHeaderTitle}>
+              🎭 Lớp vỏ ngụy trang bên ngoài {!hasPremium && '🔒'}
+            </Text>
             <TouchableOpacity
               style={styles.guideBadgeBtn}
               onPress={() => setShowGuideModal(true)}
@@ -128,7 +149,7 @@ export default function VaultDashboardScreen({
           <View style={styles.disguiseButtons}>
             <TouchableOpacity
               style={[styles.disguiseBtn, disguiseType === 'notes' && styles.disguiseBtnActive]}
-              onPress={() => onChangeDisguise('notes')}
+              onPress={() => handlePremiumAction(() => onChangeDisguise('notes'))}
             >
               <Text style={[styles.disguiseBtnText, disguiseType === 'notes' && styles.disguiseBtnTextActive]}>
                 📝 Ghi chú
@@ -137,7 +158,7 @@ export default function VaultDashboardScreen({
 
             <TouchableOpacity
               style={[styles.disguiseBtn, disguiseType === 'calculator' && styles.disguiseBtnActive]}
-              onPress={() => onChangeDisguise('calculator')}
+              onPress={() => handlePremiumAction(() => onChangeDisguise('calculator'))}
             >
               <Text style={[styles.disguiseBtnText, disguiseType === 'calculator' && styles.disguiseBtnTextActive]}>
                 🧮 Máy tính
@@ -146,7 +167,7 @@ export default function VaultDashboardScreen({
 
             <TouchableOpacity
               style={[styles.disguiseBtn, disguiseType === 'weather' && styles.disguiseBtnActive]}
-              onPress={() => onChangeDisguise('weather')}
+              onPress={() => handlePremiumAction(() => onChangeDisguise('weather'))}
             >
               <Text style={[styles.disguiseBtnText, disguiseType === 'weather' && styles.disguiseBtnTextActive]}>
                 ⛅ Thời tiết
@@ -155,7 +176,7 @@ export default function VaultDashboardScreen({
 
             <TouchableOpacity
               style={[styles.disguiseBtn, disguiseType === 'calendar' && styles.disguiseBtnActive]}
-              onPress={() => onChangeDisguise('calendar')}
+              onPress={() => handlePremiumAction(() => onChangeDisguise('calendar'))}
             >
               <Text style={[styles.disguiseBtnText, disguiseType === 'calendar' && styles.disguiseBtnTextActive]}>
                 📅 Lịch biểu
@@ -193,38 +214,38 @@ export default function VaultDashboardScreen({
             </TouchableOpacity>
 
             {/* Videos */}
-            <TouchableOpacity style={styles.gridItem} onPress={onOpenVideos}>
-              <View style={[styles.iconWrap, { backgroundColor: '#7C2D12' }]}>
+            <TouchableOpacity style={styles.gridItem} onPress={() => handlePremiumAction(onOpenVideos)}>
+              <View style={[styles.iconWrap, { backgroundColor: '#7C2D12' }, !hasPremium && { opacity: 0.5 }]}>
                 <Text style={styles.iconEmoji}>🎬</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Video Vault</Text>
+              <Text style={styles.gridItemTitle}>Video Vault {!hasPremium && '🔒'}</Text>
               <Text style={styles.gridItemCount}>{summary.videoCount || 0} video</Text>
             </TouchableOpacity>
 
             {/* Passwords & Cards */}
-            <TouchableOpacity style={styles.gridItem} onPress={onOpenPasswords}>
-              <View style={[styles.iconWrap, { backgroundColor: '#581C87' }]}>
+            <TouchableOpacity style={styles.gridItem} onPress={() => handlePremiumAction(onOpenPasswords)}>
+              <View style={[styles.iconWrap, { backgroundColor: '#581C87' }, !hasPremium && { opacity: 0.5 }]}>
                 <Text style={styles.iconEmoji}>🔑</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Passwords & Cards</Text>
+              <Text style={styles.gridItemTitle}>Passwords {!hasPremium && '🔒'}</Text>
               <Text style={styles.gridItemCount}>{summary.passwordCount || 0} mục</Text>
             </TouchableOpacity>
 
             {/* Documents */}
-            <TouchableOpacity style={styles.gridItem} onPress={onOpenDocuments}>
-              <View style={[styles.iconWrap, { backgroundColor: '#1E293B' }]}>
+            <TouchableOpacity style={styles.gridItem} onPress={() => handlePremiumAction(onOpenDocuments)}>
+              <View style={[styles.iconWrap, { backgroundColor: '#1E293B' }, !hasPremium && { opacity: 0.5 }]}>
                 <Text style={styles.iconEmoji}>📁</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Document Vault</Text>
+              <Text style={styles.gridItemTitle}>Documents {!hasPremium && '🔒'}</Text>
               <Text style={styles.gridItemCount}>{summary.documentCount || 0} file</Text>
             </TouchableOpacity>
 
             {/* Voice Memos */}
-            <TouchableOpacity style={styles.gridItem} onPress={onOpenVoices}>
-              <View style={[styles.iconWrap, { backgroundColor: '#831843' }]}>
+            <TouchableOpacity style={styles.gridItem} onPress={() => handlePremiumAction(onOpenVoices)}>
+              <View style={[styles.iconWrap, { backgroundColor: '#831843' }, !hasPremium && { opacity: 0.5 }]}>
                 <Text style={styles.iconEmoji}>🎙️</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Voice Memos</Text>
+              <Text style={styles.gridItemTitle}>Voice Memos {!hasPremium && '🔒'}</Text>
               <Text style={styles.gridItemCount}>{summary.voiceCount || 0} bản ghi</Text>
             </TouchableOpacity>
           </>

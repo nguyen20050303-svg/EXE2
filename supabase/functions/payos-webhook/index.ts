@@ -65,11 +65,12 @@ serve(async (req) => {
         p_user_id: request.user_id,
         p_status: "ACTIVE",
         p_plan: request.plan_id,
-        p_provider: "PAYOS",
+        p_provider: "INTERNAL",
         p_provider_subscription_id: orderCode,
         p_current_period_start: now.toISOString(),
         p_current_period_end: periodEnd.toISOString(),
-        p_cancel_at_period_end: false
+        p_cancel_at_period_end: false,
+        p_storage_limit: null
       });
 
       if (rpcError) {

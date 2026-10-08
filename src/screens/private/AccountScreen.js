@@ -34,6 +34,7 @@ export default function AccountScreen({
     subscriptionAccess,
     signInWithGoogleOAuth,
     signOutUser,
+    refreshSubscription,
   } = useContext(AuthContext);
 
   const [storageUsage, setStorageUsage] = useState({
@@ -45,6 +46,9 @@ export default function AccountScreen({
 
   useEffect(() => {
     if (currentUser) {
+      if (refreshSubscription) {
+        void refreshSubscription();
+      }
       void getUserStorageUsage().then(setStorageUsage);
       void getPendingQueueCount(currentUser.id).then(setPendingCount);
       const unsubscribe = subscribeToSyncChanges(() => {
@@ -126,9 +130,17 @@ export default function AccountScreen({
                 <Text style={styles.accountEmail} numberOfLines={1}>
                   {currentUser.email}
                 </Text>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeDot}>●</Text>
-                  <Text style={styles.badgeText}>Đã kết nối Supabase</Text>
+                <View style={[styles.badge, subscriptionAccess?.isPaid && styles.badgePremium]}>
+                  {subscriptionAccess?.isPaid ? (
+                    <Text style={styles.badgeTextPremium}>
+                      ★ {subscriptionAccess.plan?.toUpperCase()}
+                    </Text>
+                  ) : (
+                    <>
+                      <Text style={styles.badgeDot}>●</Text>
+                      <Text style={styles.badgeText}>Gói Cơ bản (Miễn phí)</Text>
+                    </>
+                  )}
                 </View>
               </View>
             </View>
@@ -440,7 +452,21 @@ const styles = StyleSheet.create({
   badgeText: {
     color: "#10B981",
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "600",
+  },
+  badgePremium: {
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+    alignSelf: "flex-start",
+  },
+  badgeTextPremium: {
+    color: "#FBBF24",
+    fontSize: 12,
+    fontWeight: "700",
   },
   metaDivider: {
     height: 1,
