@@ -1372,20 +1372,20 @@ await it("42. App Icon Config: app.json chứa plugin withDisguiseIcons với đ
   assert(disguisePlugin, "app.json phải cấu hình plugin withDisguiseIcons");
   const config = disguisePlugin[1];
   assert(
-    config.calculator && config.calculator.label === "Calculator",
-    "Cấu hình calculator phải có label Calculator",
+    config.calculator && (config.calculator.label === "Calculator" || config.calculator.label === "Máy tính"),
+    "Cấu hình calculator phải có label Calculator hoặc Máy tính",
   );
   assert(
-    config.notes && config.notes.label === "Notes",
-    "Cấu hình notes phải có label Notes",
+    config.notes && (config.notes.label === "Notes" || config.notes.label === "Ghi chú"),
+    "Cấu hình notes phải có label Notes hoặc Ghi chú",
   );
   assert(
-    config.weather && config.weather.label === "Weather",
-    "Cấu hình weather phải có label Weather",
+    config.weather && (config.weather.label === "Weather" || config.weather.label === "Thời tiết"),
+    "Cấu hình weather phải có label Weather hoặc Thời tiết",
   );
   assert(
-    config.calendar && config.calendar.label === "Calendar",
-    "Cấu hình calendar phải có label Calendar",
+    config.calendar && (config.calendar.label === "Calendar" || config.calendar.label === "Lịch biểu"),
+    "Cấu hình calendar phải có label Calendar hoặc Lịch biểu",
   );
 });
 

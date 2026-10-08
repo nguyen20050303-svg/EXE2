@@ -125,45 +125,44 @@ export const clearActiveMasterKey = () => {
 
 /**
  * Retrieve User's Master Encryption Key from SecureStore, fallback to Supabase
+ * Prioritizes Supabase master_key as authoritative source for multi-device synchronization.
  */
 export const getUserMasterKey = async (userId) => {
   if (!userId) return null;
   const storageKey = `hidder.master-key.${userId}`;
   let hex = await secureGetItem(storageKey);
-  
-  if (!hex) {
-    // Try to fetch from Supabase if not on local device (New Device Login)
-    try {
-      const { data, error } = await supabase
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('master_key')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!error && data?.master_key) {
+      // Cloud has the master key: this is the authoritative key for the user account across devices!
+      hex = data.master_key;
+      await secureSetItem(storageKey, hex);
+    } else if (hex) {
+      // Device has the key locally, but Supabase doesn't have it yet -> backup to Supabase
+      const { error: upErr } = await supabase
         .from('profiles')
-        .select('master_key')
-        .eq('id', userId)
-        .maybeSingle();
-      
-      if (!error && data?.master_key) {
-        hex = data.master_key;
-        await secureSetItem(storageKey, hex);
+        .update({ master_key: hex })
+        .eq('id', userId);
+      if (upErr) {
+        console.warn('Lỗi backup master_key lên Supabase:', upErr.message);
       }
-    } catch (err) {
-      console.warn('Lỗi lấy master key từ Supabase:', err.message);
     }
-  } else {
-    // Device HAS the key locally. Let's make sure it's backed up to Supabase.
-    // (This guarantees the old device uploads its key for the new device to use).
-    try {
-      const { data } = await supabase.from('profiles').select('master_key').eq('id', userId).maybeSingle();
-      if (!data?.master_key) {
-        await supabase.from('profiles').update({ master_key: hex }).eq('id', userId);
-      }
-    } catch (err) {
-      // ignore
-    }
+  } catch (err) {
+    console.warn('Lỗi kết nối Supabase khi đồng bộ master key:', err.message);
   }
 
   if (!hex) return null;
-  
+
   try {
-    return hexToBytes(hex);
+    const keyBytes = hexToBytes(hex);
+    setActiveMasterKey(keyBytes);
+    return keyBytes;
   } catch (err) {
     console.error('Lỗi phân tích Master Key:', err);
     return null;
@@ -195,7 +194,13 @@ export const getOrCreateUserMasterKey = async (userId) => {
 
   // Backup to Supabase for multi-device sync
   try {
-    await supabase.from('profiles').update({ master_key: hex }).eq('id', userId);
+    const { error: upErr } = await supabase
+      .from('profiles')
+      .update({ master_key: hex })
+      .eq('id', userId);
+    if (upErr) {
+      console.warn('Lỗi backup master key lên Supabase:', upErr.message);
+    }
   } catch (err) {
     console.warn('Lỗi backup master key lên Supabase:', err.message);
   }

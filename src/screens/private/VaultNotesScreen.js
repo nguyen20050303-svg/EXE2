@@ -36,7 +36,7 @@ export default function VaultNotesScreen({ mode, notes, onCreateNote, onDeleteNo
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Text style={styles.backText}>← Quay lại</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isDecoy ? 'Kho Ghi Chú' : 'Private Notes'}</Text>
+        <Text style={styles.headerTitle}>{isDecoy ? 'Ghi chú giả' : 'Ghi chú bí mật'}</Text>
         <TouchableOpacity style={styles.quickEscapeBtn} onPress={onQuickEscape}>
           <Text style={styles.quickEscapeText}>🔒 Thoát</Text>
         </TouchableOpacity>
@@ -75,7 +75,7 @@ export default function VaultNotesScreen({ mode, notes, onCreateNote, onDeleteNo
         )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>{isDecoy ? 'Chưa có ghi chú decoy' : 'Chưa có private note nào'}</Text>
+            <Text style={styles.emptyTitle}>{isDecoy ? 'Chưa có ghi chú giả' : 'Chưa có ghi chú bí mật nào'}</Text>
             <Text style={styles.emptyDescription}>Tạo ghi chú đầu tiên cho không gian này.</Text>
           </View>
         }

@@ -41,14 +41,14 @@ export default function DocumentVaultScreen({
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>← Vault</Text>
+          <Text style={styles.backText}>← Trở về</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.escapeButton} onPress={onQuickEscape}>
-          <Text style={styles.escapeText}>Quick Escape</Text>
+          <Text style={styles.escapeText}>Thoát nhanh</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>Document Vault</Text>
+      <Text style={styles.title}>Kho tài liệu</Text>
       <Text style={styles.subtitle}>Lưu trữ hợp đồng, tài liệu mật, tệp PDF & văn bản nhạy cảm.</Text>
 
       {loading ? (

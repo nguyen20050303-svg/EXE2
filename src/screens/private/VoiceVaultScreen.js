@@ -205,14 +205,14 @@ export default function VoiceVaultScreen({
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>← Vault</Text>
+          <Text style={styles.backText}>← Trở về</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.escapeButton} onPress={onQuickEscape}>
-          <Text style={styles.escapeText}>Quick Escape</Text>
+          <Text style={styles.escapeText}>Thoát nhanh</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>Voice Memos</Text>
+      <Text style={styles.title}>Kho ghi âm</Text>
       <Text style={styles.subtitle}>Ghi âm bí mật trực tiếp và lưu trữ riêng tư trong kho.</Text>
 
       {/* Recording Studio Box */}

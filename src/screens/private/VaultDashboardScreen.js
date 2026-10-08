@@ -62,7 +62,7 @@ export default function VaultDashboardScreen({
       {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerTitleBox}>
-          <Text style={styles.eyebrow}>{isDecoy ? 'Decoy vault' : 'Hidder vault'}</Text>
+          <Text style={styles.eyebrow}>{isDecoy ? 'Kho giả' : 'Kho bảo mật'}</Text>
           <Text style={styles.title}>{isDecoy ? 'Safe Space' : 'Private Space'}</Text>
           <Text style={styles.subtitle}>
             {isDecoy
@@ -72,7 +72,7 @@ export default function VaultDashboardScreen({
         </View>
 
         <TouchableOpacity style={styles.escapeButton} onPress={onQuickEscape}>
-          <Text style={styles.escapeText}>Quick Escape</Text>
+          <Text style={styles.escapeText}>Thoát nhanh</Text>
         </TouchableOpacity>
       </View>
 
@@ -104,7 +104,7 @@ export default function VaultDashboardScreen({
           <View style={styles.syncCardHeader}>
             <View style={styles.syncCardInfo}>
               <Text style={styles.syncTitle}>
-                ☁️ Supabase Cloud Sync {!hasPremium && '🔒'}
+                ☁️ Đồng bộ dữ liệu {!hasPremium && '🔒'}
               </Text>
               <Text style={styles.syncSubtitle}>
                 {pendingCount > 0
@@ -188,7 +188,7 @@ export default function VaultDashboardScreen({
 
       {/* Feature Grid Header */}
       <Text style={styles.sectionTitle}>
-        {isDecoy ? 'Kho mồi đánh lạc hướng' : 'Các Kho Bảo Mật'}
+        {isDecoy ? 'Kho giả đánh lạc hướng' : 'Các Kho Bảo Mật'}
       </Text>
 
       {/* Modules Grid */}
@@ -198,7 +198,7 @@ export default function VaultDashboardScreen({
           <View style={[styles.iconWrap, { backgroundColor: '#1E3A8A' }]}>
             <Text style={styles.iconEmoji}>📝</Text>
           </View>
-          <Text style={styles.gridItemTitle}>{isDecoy ? 'Decoy Notes' : 'Private Notes'}</Text>
+          <Text style={styles.gridItemTitle}>{isDecoy ? 'Ghi chú giả' : 'Ghi chú bí mật'}</Text>
           <Text style={styles.gridItemCount}>{summary.noteCount || 0} ghi chú</Text>
         </TouchableOpacity>
 
@@ -209,7 +209,7 @@ export default function VaultDashboardScreen({
               <View style={[styles.iconWrap, { backgroundColor: '#065F46' }]}>
                 <Text style={styles.iconEmoji}>🖼️</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Photo Vault</Text>
+              <Text style={styles.gridItemTitle}>Kho ảnh</Text>
               <Text style={styles.gridItemCount}>{summary.photoCount || 0} ảnh</Text>
             </TouchableOpacity>
 
@@ -218,7 +218,7 @@ export default function VaultDashboardScreen({
               <View style={[styles.iconWrap, { backgroundColor: '#7C2D12' }, !hasPremium && { opacity: 0.5 }]}>
                 <Text style={styles.iconEmoji}>🎬</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Video Vault {!hasPremium && '🔒'}</Text>
+              <Text style={styles.gridItemTitle}>Kho video {!hasPremium && '🔒'}</Text>
               <Text style={styles.gridItemCount}>{summary.videoCount || 0} video</Text>
             </TouchableOpacity>
 
@@ -227,7 +227,7 @@ export default function VaultDashboardScreen({
               <View style={[styles.iconWrap, { backgroundColor: '#581C87' }, !hasPremium && { opacity: 0.5 }]}>
                 <Text style={styles.iconEmoji}>🔑</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Passwords {!hasPremium && '🔒'}</Text>
+              <Text style={styles.gridItemTitle}>Mật khẩu {!hasPremium && '🔒'}</Text>
               <Text style={styles.gridItemCount}>{summary.passwordCount || 0} mục</Text>
             </TouchableOpacity>
 
@@ -236,7 +236,7 @@ export default function VaultDashboardScreen({
               <View style={[styles.iconWrap, { backgroundColor: '#1E293B' }, !hasPremium && { opacity: 0.5 }]}>
                 <Text style={styles.iconEmoji}>📁</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Documents {!hasPremium && '🔒'}</Text>
+              <Text style={styles.gridItemTitle}>Tài liệu {!hasPremium && '🔒'}</Text>
               <Text style={styles.gridItemCount}>{summary.documentCount || 0} file</Text>
             </TouchableOpacity>
 
@@ -245,7 +245,7 @@ export default function VaultDashboardScreen({
               <View style={[styles.iconWrap, { backgroundColor: '#831843' }, !hasPremium && { opacity: 0.5 }]}>
                 <Text style={styles.iconEmoji}>🎙️</Text>
               </View>
-              <Text style={styles.gridItemTitle}>Voice Memos {!hasPremium && '🔒'}</Text>
+              <Text style={styles.gridItemTitle}>Ghi âm {!hasPremium && '🔒'}</Text>
               <Text style={styles.gridItemCount}>{summary.voiceCount || 0} bản ghi</Text>
             </TouchableOpacity>
           </>

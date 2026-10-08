@@ -259,8 +259,24 @@ function MainAppContent() {
             ]
           );
         } else {
-          Alert.alert('Đồng bộ thành công', `Đã đồng bộ với Supabase Cloud lúc ${res.timestamp}`);
+          const uploaded = res.queueResult?.processed || 0;
+          const notesPulled = res.pullResult?.notesPulled || 0;
+          const filesPulled = res.pullResult?.filesPulled || 0;
+          const msg = [
+            `Đã đồng bộ xong lúc ${res.timestamp}`,
+            `• Tải lên Cloud: ${uploaded} mục`,
+            `• Tải về máy: ${notesPulled} ghi chú, ${filesPulled} tệp đa phương tiện`,
+          ].join('\n');
+          Alert.alert('Đồng bộ thành công', msg);
         }
+      } else if (res.partial) {
+        setLastSync(res.timestamp);
+        await loadVaultData(activeVaultMode);
+        await loadPublicNotes();
+        Alert.alert(
+          'Đồng bộ hoàn tất một phần',
+          `Một số dữ liệu đã đồng bộ nhưng có cảnh báo:\n${res.error || 'Vui lòng kiểm tra lại kết nối mạng.'}`
+        );
       } else {
         Alert.alert('Đồng bộ thất bại', res.error || 'Vui lòng kiểm tra lại kết nối mạng.');
       }

@@ -107,7 +107,7 @@ export default function AccountScreen({
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backText}>← Vault</Text>
+            <Text style={styles.backText}>← Trở về</Text>
           </TouchableOpacity>
         </View>
 

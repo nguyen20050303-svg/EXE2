@@ -91,16 +91,16 @@ export default function PasswordVaultScreen({
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>← Vault</Text>
+          <Text style={styles.backText}>← Trở về</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.escapeButton} onPress={onQuickEscape}>
-          <Text style={styles.escapeText}>Quick Escape</Text>
+          <Text style={styles.escapeText}>Thoát nhanh</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.titleRow}>
         <View>
-          <Text style={styles.title}>Passwords & Cards</Text>
+          <Text style={styles.title}>Quản lý Mật khẩu</Text>
           <Text style={styles.subtitle}>Két lưu trữ tài khoản và thông tin thẻ bảo mật.</Text>
         </View>
         <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>

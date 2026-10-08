@@ -57,14 +57,14 @@ export default function VideoVaultScreen({
       {/* Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>← Vault</Text>
+          <Text style={styles.backText}>← Trở về</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.escapeButton} onPress={onQuickEscape}>
-          <Text style={styles.escapeText}>Quick Escape</Text>
+          <Text style={styles.escapeText}>Thoát nhanh</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>Video Vault</Text>
+      <Text style={styles.title}>Kho video</Text>
       <Text style={styles.subtitle}>Video riêng tư được cô lập trong sandbox an toàn của app.</Text>
 
       {loading ? (

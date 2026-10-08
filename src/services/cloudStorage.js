@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { generateId } from '../utils/helpers.js';
-import { SUPABASE_URL, supabase } from './supabase.js';
+import { generateId, isUUID } from '../utils/helpers.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabase } from './supabase.js';
 import {
   encryptVaultFile,
   decryptVaultFile,
@@ -161,6 +161,7 @@ export const requestSignedUploadUrl = async ({
     return {
       success: true,
       signedUrl: data.signedUrl,
+      token: data.token,
       storagePath: storagePath,
       fileId: fileId,
     };
@@ -217,6 +218,7 @@ export const requestDeleteFromCloud = async (storagePath) => {
 export const uploadFile = async ({
   localUri,
   fileName,
+  fileId = null,
   category = FILE_CATEGORIES.PHOTO,
   mimeType = 'application/octet-stream',
   sizeBytes = 0,
@@ -244,9 +246,10 @@ export const uploadFile = async ({
     };
   }
 
-  const fileId = generateId();
+  // Ensure fileId is a valid UUID v4 to satisfy PostgreSQL UUID primary key schema
+  const validFileId = isUUID(fileId) ? fileId : generateId();
   const categoryPath = String(category).toLowerCase();
-  const storagePath = `users/${user.id}/${categoryPath}/${fileId}`;
+  const storagePath = `users/${user.id}/${categoryPath}/${validFileId}`;
 
   // C. Client-Side Encryption: Encrypt local file into temporary container binary
   let encryptionResult;
@@ -258,14 +261,14 @@ export const uploadFile = async ({
     encryptionResult = await encryptVaultFile({
       sourceUri: localUri,
       masterKey,
-      fileId,
+      fileId: validFileId,
     });
   } catch (encErr) {
     console.warn('Lỗi mã hóa file trước khi upload:', encErr.message);
     return {
       success: false,
       error: `Lỗi mã hóa client-side: ${encErr.message}`,
-      fileId,
+      fileId: validFileId,
       storagePath,
       localPreserved: true,
     };
@@ -273,9 +276,9 @@ export const uploadFile = async ({
 
   // D. Record initial metadata in Supabase files table (with encryption_version = 1)
   const initialMetadata = {
-    id: fileId,
+    id: validFileId,
     user_id: user.id,
-    original_name: fileName || fileId,
+    original_name: fileName || validFileId,
     storage_path: storagePath,
     mime_type: 'application/octet-stream', // Encrypted container binary
     size_bytes: encryptionResult.sizeBytes,
@@ -284,15 +287,23 @@ export const uploadFile = async ({
     encryption_version: encryptionResult.encryptionVersion,
   };
 
-  try {
-    await supabase.from('files').upsert(initialMetadata);
-  } catch (metaErr) {
-    console.warn('Lỗi ghi metadata ban đầu:', metaErr.message);
+  const { error: metaInsertErr } = await supabase.from('files').upsert(initialMetadata);
+  if (metaInsertErr) {
+    console.error('Lỗi lưu metadata lên Supabase files table:', metaInsertErr.message);
+    try {
+      await FileSystem.deleteAsync(encryptionResult.encryptedUri, { idempotent: true });
+    } catch (_) {}
+    return {
+      success: false,
+      error: `Lỗi cơ sở dữ liệu khi lưu file metadata: ${metaInsertErr.message}`,
+      fileId: validFileId,
+      localPreserved: true,
+    };
   }
 
-  // E. Request signed upload URL from GCS backend (for encrypted payload size)
+  // E. Request signed upload URL from Supabase Storage (for encrypted payload size)
   const signedRes = await requestSignedUploadUrl({
-    fileId,
+    fileId: validFileId,
     category,
     fileName,
     mimeType: 'application/octet-stream',
@@ -308,28 +319,34 @@ export const uploadFile = async ({
     await supabase
       .from('files')
       .update({ sync_status: SYNC_STATUS.ERROR, updated_at: new Date().toISOString() })
-      .eq('id', fileId);
+      .eq('id', validFileId);
 
     return {
       success: false,
-      error: signedRes.error || 'Chưa cấu hình GCS backend',
+      error: signedRes.error || 'Chưa cấu hình Supabase Storage bucket',
       backendConfigured: signedRes.configured,
-      fileId,
+      fileId: validFileId,
       storagePath,
       localPreserved: true,
     };
   }
 
-  // F. Perform HTTP PUT upload of ENCRYPTED binary to Google Cloud Storage Signed URL
+  // F. Perform HTTP PUT upload of ENCRYPTED binary to Supabase Storage Signed URL
   try {
+    const headers = {
+      'Content-Type': 'application/octet-stream',
+      'apikey': SUPABASE_ANON_KEY,
+    };
+    if (signedRes.token) {
+      headers['Authorization'] = `Bearer ${signedRes.token}`;
+    }
+
     const uploadResult = await FileSystem.uploadAsync(
       signedRes.signedUrl,
       encryptionResult.encryptedUri,
       {
         httpMethod: 'PUT',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-        },
+        headers,
       }
     );
 
@@ -340,7 +357,7 @@ export const uploadFile = async ({
 
     if (uploadResult.status >= 200 && uploadResult.status < 300) {
       // Mark as CLOUD synced in metadata
-      await supabase
+      const { error: updateMetaErr } = await supabase
         .from('files')
         .update({
           sync_status: SYNC_STATUS.CLOUD,
@@ -348,18 +365,22 @@ export const uploadFile = async ({
           encryption_version: encryptionResult.encryptionVersion,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', fileId);
+        .eq('id', validFileId);
+
+      if (updateMetaErr) {
+        console.warn('Lỗi cập nhật sync_status thành CLOUD:', updateMetaErr.message);
+      }
 
       return {
         success: true,
-        fileId,
+        fileId: validFileId,
         storagePath,
         sizeBytes: encryptionResult.sizeBytes,
         encryptionVersion: encryptionResult.encryptionVersion,
         syncStatus: SYNC_STATUS.CLOUD,
       };
     } else {
-      throw new Error(`Upload to GCS failed with status code ${uploadResult.status}`);
+      throw new Error(`Upload lên Cloud Storage thất bại (HTTP status: ${uploadResult.status})`);
     }
   } catch (uploadErr) {
     // Always clean up temp encrypted file on failure
@@ -367,16 +388,16 @@ export const uploadFile = async ({
       await FileSystem.deleteAsync(encryptionResult.encryptedUri, { idempotent: true });
     } catch (_) { }
 
-    console.warn('Lỗi tải file lên GCS:', uploadErr.message);
+    console.warn('Lỗi tải file lên Supabase Storage:', uploadErr.message);
     await supabase
       .from('files')
       .update({ sync_status: SYNC_STATUS.ERROR, updated_at: new Date().toISOString() })
-      .eq('id', fileId);
+      .eq('id', validFileId);
 
     return {
       success: false,
       error: uploadErr.message,
-      fileId,
+      fileId: validFileId,
       localPreserved: true,
     };
   }
@@ -393,6 +414,20 @@ export const downloadFile = async ({ fileId, storagePath, destinationUri }) => {
 
   if (!user) {
     return { success: false, error: 'User chưa đăng nhập' };
+  }
+
+  // Ensure parent directory exists for destinationUri
+  try {
+    const lastSlash = destinationUri.lastIndexOf('/');
+    if (lastSlash > 0) {
+      const destDir = destinationUri.substring(0, lastSlash + 1);
+      const dirInfo = await FileSystem.getInfoAsync(destDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
+      }
+    }
+  } catch (dirErr) {
+    console.warn('Lỗi chuẩn bị thư mục tải về:', dirErr.message);
   }
 
   // A. Determine encryption_version from metadata
@@ -413,7 +448,11 @@ export const downloadFile = async ({ fileId, storagePath, destinationUri }) => {
   // C. Handle Legacy Plaintext File (encryption_version === 0)
   if (encryptionVersion === 0) {
     try {
-      const downloadResult = await FileSystem.downloadAsync(signedRes.signedUrl, destinationUri);
+      const downloadResult = await FileSystem.downloadAsync(
+        signedRes.signedUrl,
+        destinationUri,
+        { headers: { apikey: SUPABASE_ANON_KEY } }
+      );
       return {
         success: true,
         uri: downloadResult.uri,
@@ -430,12 +469,16 @@ export const downloadFile = async ({ fileId, storagePath, destinationUri }) => {
   const tempEncryptedUri = `${FileSystem.cacheDirectory}hidder_dl_${fileId || Date.now()}_${Math.random().toString(36).substring(2, 7)}.bin`;
 
   try {
-    const downloadResult = await FileSystem.downloadAsync(signedRes.signedUrl, tempEncryptedUri);
+    const downloadResult = await FileSystem.downloadAsync(
+      signedRes.signedUrl,
+      tempEncryptedUri,
+      { headers: { apikey: SUPABASE_ANON_KEY } }
+    );
     if (downloadResult.status < 200 || downloadResult.status >= 300) {
-      throw new Error(`Download from GCS failed with status code ${downloadResult.status}`);
+      throw new Error(`Download từ Cloud Storage thất bại với mã lỗi HTTP ${downloadResult.status}`);
     }
 
-    // Client-Side Decryption with existing user's Master Key (NEVER auto-generate on decrypt)
+    // Client-Side Decryption with user's Master Key (ensures cross-device synced key)
     const masterKey = getActiveMasterKey() || (await getUserMasterKey(user.id));
     if (!masterKey) {
       try {

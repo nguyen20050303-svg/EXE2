@@ -12,7 +12,7 @@ import {
 } from './cloudStorage.js';
 import { VAULT_DIRS, ensureVaultDirectories } from './fileSystem.js';
 import { evaluateAccess, fetchSubscription } from './subscriptionService.js';
-
+import { getUserMasterKey } from './crypto.js';
 // ====================================================================
 // CONSTANTS & TYPES
 // ====================================================================
@@ -94,6 +94,34 @@ const writeJson = async (key, value) => {
     await AsyncStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Lỗi ghi storage ${key}:`, error);
+  }
+};
+
+const updateLocalItemCloudId = async (entityType, localId, cloudFileId) => {
+  const map = {
+    [SYNC_ENTITY_TYPES.PHOTO]: STORAGE_KEYS.photoItems,
+    [SYNC_ENTITY_TYPES.VIDEO]: STORAGE_KEYS.videoItems,
+    [SYNC_ENTITY_TYPES.DOCUMENT]: STORAGE_KEYS.documentItems,
+    [SYNC_ENTITY_TYPES.VOICE]: STORAGE_KEYS.voiceItems,
+  };
+  const key = map[entityType];
+  if (!key) return;
+
+  try {
+    const list = await readJson(key, []);
+    let changed = false;
+    const updated = list.map((item) => {
+      if (item.id === localId || item.cloudFileId === localId || item.id === cloudFileId) {
+        changed = true;
+        return { ...item, cloudFileId };
+      }
+      return item;
+    });
+    if (changed) {
+      await writeJson(key, updated);
+    }
+  } catch (err) {
+    console.warn(`Lỗi cập nhật cloudFileId cho ${entityType} ${localId}:`, err.message);
   }
 };
 
@@ -333,6 +361,7 @@ export const processSyncQueue = async (userId, options = {}) => {
   let processed = 0;
   let failed = 0;
   let paused = 0;
+  const failedItems = [];
 
   for (let i = 0; i < queue.length; i++) {
     const item = queue[i];
@@ -423,6 +452,7 @@ export const processSyncQueue = async (userId, options = {}) => {
           // Upload with client-side AES-256-GCM encryption
           const uploadRes = await uploadFile({
             localUri: item.payload.uri,
+            fileId: item.payload.cloudFileId || item.payload.fileId || item.entityId,
             category: item.entityType,
             fileName: item.payload.name,
             mimeType: item.payload.mimeType,
@@ -436,6 +466,9 @@ export const processSyncQueue = async (userId, options = {}) => {
           item.payload.cloudFileId = uploadRes.fileId;
           item.payload.storagePath = uploadRes.storagePath;
           item.payload.encryptionVersion = uploadRes.encryptionVersion;
+
+          // CRITICAL: Synchronize cloudFileId back to local persistent storage (photoItems, etc.)
+          await updateLocalItemCloudId(item.entityType, item.entityId, uploadRes.fileId);
         }
       }
 
@@ -450,6 +483,11 @@ export const processSyncQueue = async (userId, options = {}) => {
       item.status = item.retryCount >= item.maxRetries ? QUEUE_STATUS.FAILED : QUEUE_STATUS.PENDING;
       item.updatedAt = new Date().toISOString();
       failed++;
+      failedItems.push({
+        entityType: item.entityType,
+        entityId: item.entityId,
+        error: item.lastError,
+      });
     }
   }
 
@@ -457,7 +495,7 @@ export const processSyncQueue = async (userId, options = {}) => {
   const remaining = queue.filter((item) => item.status !== QUEUE_STATUS.SYNCED);
   await saveSyncQueue(userId, remaining);
 
-  return { processed, failed, paused, remaining: remaining.length };
+  return { processed, failed, paused, remaining: remaining.length, failedItems };
 };
 
 // ====================================================================
@@ -585,6 +623,7 @@ export const pullCloudChanges = async (userId, options = {}) => {
   // ----------------------------------------------------
   // 3. Pull Files & Restore Encrypted Media
   // ----------------------------------------------------
+  const pullErrors = [];
   try {
     const { data: remoteFiles, error: filesErr } = await supabase
       .from('files')
@@ -592,7 +631,9 @@ export const pullCloudChanges = async (userId, options = {}) => {
       .eq('user_id', userId)
       .neq('sync_status', SYNC_STATUS.DELETED);
 
-    if (!filesErr && remoteFiles && remoteFiles.length > 0) {
+    if (filesErr) {
+      pullErrors.push(`Lỗi truy vấn danh sách file từ Supabase: ${filesErr.message}`);
+    } else if (remoteFiles && remoteFiles.length > 0) {
       if (ensureVaultDirectories) {
         await ensureVaultDirectories().catch(() => {});
       }
@@ -634,12 +675,20 @@ export const pullCloudChanges = async (userId, options = {}) => {
         }
 
         // Check if file already exists locally
-        const existingLocal = categoryConfig.list.find(
+        const existingIndex = categoryConfig.list.findIndex(
           (item) => item.id === remoteFile.id || item.cloudFileId === remoteFile.id
         );
 
-        if (!existingLocal && remoteFile.sync_status === SYNC_STATUS.CLOUD) {
-          // File exists on Cloud but NOT on this device (e.g., new device login)
+        if (existingIndex >= 0) {
+          // Already exists locally: ensure cloudFileId is linked
+          if (!categoryConfig.list[existingIndex].cloudFileId) {
+            categoryConfig.list[existingIndex].cloudFileId = remoteFile.id;
+          }
+          continue;
+        }
+
+        // File exists on Cloud but NOT on this device -> download and decrypt
+        if (remoteFile.sync_status === SYNC_STATUS.CLOUD || remoteFile.sync_status === SYNC_STATUS.UPLOADING) {
           const ext = remoteFile.original_name ? remoteFile.original_name.split('.').pop() : 'dat';
           const destinationUri = `${categoryConfig.dir}${remoteFile.id}.${ext}`;
 
@@ -664,9 +713,11 @@ export const pullCloudChanges = async (userId, options = {}) => {
               filesPulled++;
             } else {
               console.warn(`Không thể khôi phục file ${remoteFile.id}:`, downloadRes.error);
+              pullErrors.push(`File ${remoteFile.original_name || remoteFile.id}: ${downloadRes.error}`);
             }
           } catch (dlErr) {
             console.warn(`Lỗi khôi phục media ${remoteFile.id}:`, dlErr.message);
+            pullErrors.push(`File ${remoteFile.original_name || remoteFile.id}: ${dlErr.message}`);
           }
         }
       }
@@ -680,10 +731,57 @@ export const pullCloudChanges = async (userId, options = {}) => {
       ]);
     }
   } catch (err) {
-    console.warn('Lỗi pull files từ Supabase/GCS:', err.message);
+    console.warn('Lỗi pull files từ Supabase:', err.message);
+    pullErrors.push(`Lỗi kết nối tải file: ${err.message}`);
   }
 
-  return { notesPulled, passwordsPulled, filesPulled };
+  return { notesPulled, passwordsPulled, filesPulled, pullErrors };
+};
+
+/**
+ * Scan local media items that have not yet been backed up to cloud
+ * and automatically add them to the offline sync queue.
+ */
+export const reconcileLocalFilesWithQueue = async (userId) => {
+  if (!userId) return 0;
+  let enqueued = 0;
+
+  try {
+    const [photos, videos, docs, voices, queue] = await Promise.all([
+      readJson(STORAGE_KEYS.photoItems, []),
+      readJson(STORAGE_KEYS.videoItems, []),
+      readJson(STORAGE_KEYS.documentItems, []),
+      readJson(STORAGE_KEYS.voiceItems, []),
+      getSyncQueue(userId),
+    ]);
+
+    const categories = [
+      { items: photos, category: 'PHOTO' },
+      { items: videos, category: 'VIDEO' },
+      { items: docs, category: 'DOCUMENT' },
+      { items: voices, category: 'VOICE' },
+    ];
+
+    for (const { items, category } of categories) {
+      for (const item of items) {
+        if (!item || !item.uri) continue;
+        // Check if item has already been enqueued or already synced
+        const inQueue = queue.some(
+          (q) => (q.entityId === item.id || q.payload?.id === item.id) &&
+                 (q.status === QUEUE_STATUS.PENDING || q.status === QUEUE_STATUS.FAILED)
+        );
+
+        if (!inQueue && !item.cloudFileId) {
+          await enqueueFile(item, category, SYNC_ACTIONS.CREATE, userId);
+          enqueued++;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Lỗi reconcileLocalFilesWithQueue:', err.message);
+  }
+
+  return enqueued;
 };
 
 // ====================================================================
@@ -694,9 +792,11 @@ export const pullCloudChanges = async (userId, options = {}) => {
  * Perform complete two-way synchronization:
  * 1. Checks user authentication.
  * 2. Checks subscription access.
- * 3. Processes pending offline queue (upload/delete).
- * 4. Pulls latest cloud changes down to local storage.
- * 5. Updates last sync timestamp.
+ * 3. Synchronizes Master Encryption Key across devices.
+ * 4. Automatically reconciles any un-synced local media into queue.
+ * 5. Processes pending offline queue (upload/delete).
+ * 6. Pulls latest cloud changes down to local storage.
+ * 7. Updates last sync timestamp.
  */
 export const syncAll = async (options = {}) => {
   try {
@@ -708,6 +808,13 @@ export const syncAll = async (options = {}) => {
         success: false,
         error: 'Bạn chưa đăng nhập. Vui lòng vào mục "Tài khoản Cloud" để đăng nhập trước khi đồng bộ.',
       };
+    }
+
+    // Step 0: Ensure Master Key is backed up to Supabase or fetched from Supabase
+    try {
+      await getUserMasterKey(user.id);
+    } catch (keyErr) {
+      console.warn('Lỗi đồng bộ Master Key:', keyErr.message);
     }
 
     // Freemium Quota & Storage evaluation
@@ -726,6 +833,9 @@ export const syncAll = async (options = {}) => {
       console.warn('Lỗi kiểm tra quota khi syncAll:', subErr.message);
     }
 
+    // Step 1: Reconcile any existing local files that were added before login or offline
+    const reconciledCount = await reconcileLocalFilesWithQueue(user.id);
+
     // Step A: Process offline queue (Push)
     const queueResult = await processSyncQueue(user.id, options);
 
@@ -738,12 +848,25 @@ export const syncAll = async (options = {}) => {
 
     const pendingCount = await getPendingQueueCount(user.id);
 
+    const hasFailures = (queueResult?.failed > 0) || (pullResult?.pullErrors?.length > 0);
+    const failureMessages = [];
+    if (queueResult?.failedItems?.length > 0) {
+      failureMessages.push(...queueResult.failedItems.map((f) => f.error));
+    }
+    if (pullResult?.pullErrors?.length > 0) {
+      failureMessages.push(...pullResult.pullErrors);
+    }
+
     return {
-      success: true,
+      success: !hasFailures,
+      partial: hasFailures && ((queueResult?.processed || 0) > 0 || (pullResult?.filesPulled || 0) > 0 || (pullResult?.notesPulled || 0) > 0),
       timestamp,
       queueResult,
       pullResult,
       pendingCount,
+      reconciledCount,
+      isQuotaFull: quotaStatus?.isOverQuota || false,
+      error: hasFailures ? failureMessages.join('\n') : null,
     };
   } catch (error) {
     console.warn('Lỗi tổng thể syncAll:', error);

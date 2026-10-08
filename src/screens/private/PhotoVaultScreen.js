@@ -24,14 +24,14 @@ export default function PhotoVaultScreen({
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={onBack}>
-          <Text style={styles.backText}>← Vault</Text>
+          <Text style={styles.backText}>← Trở về</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.escapeButton} onPress={onQuickEscape}>
-          <Text style={styles.escapeText}>Quick Escape</Text>
+          <Text style={styles.escapeText}>Thoát nhanh</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.title}>Photo vault</Text>
+      <Text style={styles.title}>Kho ảnh</Text>
       <Text style={styles.subtitle}>Ảnh được copy vào sandbox local của ứng dụng.</Text>
 
       {loading ? (
