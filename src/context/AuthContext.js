@@ -27,21 +27,16 @@ if (Platform.OS !== "web") {
     // Expo Go có thể tải được package JavaScript nhưng không có native module.
     if (NativeModules.RNGoogleSignin || NativeModules.RNGoogleSignInCGen) {
       isNativeAuthAvailable = true;
-      const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-      if (webClientId) {
-        GoogleSignin.configure({
-          scopes: [
-            "https://www.googleapis.com/auth/userinfo.email",
-            "https://www.googleapis.com/auth/userinfo.profile",
-          ],
-          webClientId,
-        });
-      } else {
-        console.warn(
-          "Thiếu EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, dùng OAuth qua trình duyệt.",
-        );
-        isNativeAuthAvailable = false;
-      }
+      const webClientId =
+        process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+        "1035536210869-q8l0fdcm6lspeb68d7tlne38ks5i19ad.apps.googleusercontent.com";
+      GoogleSignin.configure({
+        scopes: [
+          "https://www.googleapis.com/auth/userinfo.email",
+          "https://www.googleapis.com/auth/userinfo.profile",
+        ],
+        webClientId,
+      });
     }
   } catch (error) {
     console.log(
@@ -424,7 +419,12 @@ export const AuthProvider = ({ children }) => {
         // Tự động lấy URL chính xác tuỳ theo môi trường (bỏ hoàn toàn proxy)
         // - Nếu chạy Expo Go: Lấy đúng IP Wifi hiện tại (vd: exp://192.168.X.X:8081/--/auth)
         // - Nếu App thật: Lấy đúng scheme của app (vd: hidder://auth)
-        const redirectUrl = Linking.createURL("auth");
+        let redirectUrl = "hidder://auth";
+        try {
+          redirectUrl = Linking.createURL("auth", { scheme: "hidder" }) || "hidder://auth";
+        } catch {
+          redirectUrl = "hidder://auth";
+        }
 
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: "google",

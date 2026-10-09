@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.hidder.app",
-      "versionCode": 8,
+      "versionCode": 9,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
@@ -78,6 +78,7 @@
           }
         }
       ],
+      "@react-native-google-signin/google-signin",
       "expo-secure-store",
       "expo-status-bar",
       [
