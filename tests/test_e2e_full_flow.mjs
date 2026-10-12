@@ -1449,6 +1449,48 @@ await it("44. AuthContext Integration: completeSetup, changeDisguiseType và loa
   );
 });
 
+// ====================================================================
+// 13. MULTI-ITEM IMPORT, AUTO-LOCK SAFETY & PHYSICAL FILE CLEANUP
+// ====================================================================
+console.log("--- 13. Multi-Item Import & Auto-Lock Hardening ---");
+
+await it("45. Multi-selection: App.js và database.js hỗ trợ chọn nhiều ảnh, video và tài liệu", async () => {
+  const appCode = fs.readFileSync("App.js", "utf8");
+  const dbCode = fs.readFileSync("src/services/database.js", "utf8");
+
+  assert(appCode.includes("allowsMultipleSelection: true"), "ImagePicker phải bật allowsMultipleSelection");
+  assert(appCode.includes("multiple: true"), "DocumentPicker phải bật multiple");
+  assert(dbCode.includes("export const addPhotoItems"), "database.js phải export addPhotoItems");
+  assert(dbCode.includes("export const addVideoItems"), "database.js phải export addVideoItems");
+  assert(dbCode.includes("export const addDocumentItems"), "database.js phải export addDocumentItems");
+});
+
+await it("46. Auto-Lock Safety: AuthContext chỉ khóa khi background và có timeout an toàn cho picker", async () => {
+  const authCode = fs.readFileSync("src/context/AuthContext.js", "utf8");
+
+  assert(
+    authCode.includes('nextState === "background"'),
+    "Auto-Lock chỉ được kích hoạt khi app thực sự rơi vào background",
+  );
+  assert(
+    !authCode.includes('nextState !== "active" && !isPickerActiveRef.current'),
+    "Auto-Lock không được khóa vội vàng ở trạng thái inactive",
+  );
+  assert(
+    authCode.includes("pickerTimeoutRef"),
+    "AuthContext phải có timeout an toàn giữ cờ picker sau khi đóng thư viện",
+  );
+});
+
+await it("47. Physical File Cleanup: database.js gọi FileSystem.deleteAsync khi xóa media", async () => {
+  const dbCode = fs.readFileSync("src/services/database.js", "utf8");
+
+  assert(
+    dbCode.includes("FileSystem.deleteAsync"),
+    "database.js phải gọi FileSystem.deleteAsync để dọn dẹp file nhị phân trên đĩa",
+  );
+});
+
 console.log("\n=============================================================");
 console.log(
   `  KẾT QUẢ KIỂM THỬ: ${passedTests} / ${totalTests} BÀI TEST ĐÃ VƯỢT QUA`,

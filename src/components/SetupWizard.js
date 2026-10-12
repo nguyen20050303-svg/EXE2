@@ -71,7 +71,7 @@ export default function SetupWizard({
     setErrorMessage("");
 
     if (step === 1 && !isValidSecretCode(realCode)) {
-      setErrorMessage("Mã thật cần ít nhất 4 ký tự.");
+      setErrorMessage("Mã thật cần từ 4 đến 6 ký tự.");
       return;
     }
 
@@ -187,13 +187,14 @@ export default function SetupWizard({
                 placeholder={
                   disguise === "calculator"
                     ? "Ví dụ: 2468 hoặc 13579"
-                    : "Ví dụ: 2468 hoặc luna.note"
+                    : "Ví dụ: 2468 hoặc luna"
                 }
                 placeholderTextColor="#9CA3AF"
                 value={realCode}
                 onChangeText={setRealCode}
                 autoCapitalize="none"
                 autoCorrect={false}
+                maxLength={6}
               />
               <Text style={styles.helperText}>
                 {disguise === "calculator"
@@ -218,6 +219,7 @@ export default function SetupWizard({
                 onChangeText={setDecoyCode}
                 autoCapitalize="none"
                 autoCorrect={false}
+                maxLength={6}
               />
               <Text style={styles.helperText}>
                 Nếu cần, mã giả sẽ mở một vault vô hại để đánh lạc hướng.

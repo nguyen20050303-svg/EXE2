@@ -114,11 +114,24 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [session, setSession] = useState(null);
 
-  // Ref to prevent Auto-Lock when system Media / Document pickers are open
+  // Ref to prevent Auto-Lock when system Media / Document pickers or Modals are open
   const isPickerActiveRef = useRef(false);
+  const pickerTimeoutRef = useRef(null);
 
   const setPickerActive = (active) => {
-    isPickerActiveRef.current = Boolean(active);
+    if (pickerTimeoutRef.current) {
+      clearTimeout(pickerTimeoutRef.current);
+      pickerTimeoutRef.current = null;
+    }
+    if (active) {
+      isPickerActiveRef.current = true;
+    } else {
+      // Giữ cờ 1500ms để hệ điều hành hoàn tất chu kỳ chuyển tiếp (inactive -> active) khi đóng Thư viện/Picker
+      pickerTimeoutRef.current = setTimeout(() => {
+        isPickerActiveRef.current = false;
+        pickerTimeoutRef.current = null;
+      }, 1500);
+    }
   };
 
   // Phase 2: Subscription states
@@ -280,13 +293,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState !== "active" && !isPickerActiveRef.current) {
+      // Chỉ khóa khi ứng dụng thực sự vào 'background' (người dùng bấm Home hoặc chuyển app).
+      // Không khóa khi 'inactive' (tránh khóa nhầm khi bật popup xin quyền, bàn phím, hay đóng modal).
+      if (nextState === "background" && !isPickerActiveRef.current) {
         setIsUnlocked(false);
         setActiveVaultMode(null);
       }
     });
 
     return () => {
+      if (pickerTimeoutRef.current) {
+        clearTimeout(pickerTimeoutRef.current);
+      }
       subscription.remove();
     };
   }, []);

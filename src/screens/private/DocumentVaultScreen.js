@@ -112,7 +112,7 @@ export default function DocumentVaultScreen({
         {importing ? (
           <ActivityIndicator size="small" color="#0F172A" />
         ) : (
-          <Text style={styles.importButtonText}>＋ Import tệp / Tài liệu</Text>
+          <Text style={styles.importButtonText}>＋ Import tệp / Tài liệu (chọn nhiều)</Text>
         )}
       </TouchableOpacity>
     </View>

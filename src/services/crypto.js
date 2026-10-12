@@ -10,7 +10,10 @@ import { supabase } from './supabase.js';
 // ==========================================
 export const normalizeSecretCode = (value) => value?.trim().toLowerCase() ?? '';
 
-export const isValidSecretCode = (value) => normalizeSecretCode(value).length >= 4;
+export const isValidSecretCode = (value) => {
+  const len = normalizeSecretCode(value).length;
+  return len >= 4 && len <= 6;
+};
 
 export const maskSecretCode = (value) => {
   const normalized = normalizeSecretCode(value);

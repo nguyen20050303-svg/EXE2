@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import { generateId } from '../utils/helpers.js';
 import { supabase } from './supabase.js';
 import {
@@ -290,15 +291,22 @@ export const getPhotoItems = async () => {
   return photos.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
 };
 
-export const addPhotoItem = async (photo) => {
+export const addPhotoItems = async (photos) => {
+  if (!Array.isArray(photos) || photos.length === 0) return [];
   const existing = await getPhotoItems();
-  const next = [{ ...photo, id: photo.id || generateId() }, ...existing];
+  const prepared = photos.map((p) => ({ ...p, id: p.id || generateId() }));
+  const next = [...prepared, ...existing];
   await writeJson(STORAGE_KEYS.photoItems, next);
 
-  // Enqueue for encrypted offline sync to GCS
-  void enqueueFile(next[0], 'PHOTO', SYNC_ACTIONS.CREATE);
+  for (const item of prepared) {
+    void enqueueFile(item, 'PHOTO', SYNC_ACTIONS.CREATE);
+  }
+  return prepared;
+};
 
-  return next[0];
+export const addPhotoItem = async (photo) => {
+  const result = await addPhotoItems([photo]);
+  return result[0];
 };
 
 export const deletePhotoItem = async (id) => {
@@ -308,6 +316,11 @@ export const deletePhotoItem = async (id) => {
   await writeJson(STORAGE_KEYS.photoItems, next);
   if (deleted) {
     void enqueueFile(deleted, 'PHOTO', SYNC_ACTIONS.DELETE);
+    if (deleted.uri) {
+      void FileSystem.deleteAsync(deleted.uri, { idempotent: true }).catch((err) =>
+        console.warn('Lỗi xóa file ảnh cục bộ:', err.message)
+      );
+    }
   }
   return next;
 };
@@ -341,12 +354,22 @@ export const getVideoItems = async () => {
   return videos.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
 };
 
-export const addVideoItem = async (video) => {
+export const addVideoItems = async (videos) => {
+  if (!Array.isArray(videos) || videos.length === 0) return [];
   const existing = await getVideoItems();
-  const next = [{ ...video, id: video.id || generateId() }, ...existing];
+  const prepared = videos.map((v) => ({ ...v, id: v.id || generateId() }));
+  const next = [...prepared, ...existing];
   await writeJson(STORAGE_KEYS.videoItems, next);
-  void enqueueFile(next[0], 'VIDEO', SYNC_ACTIONS.CREATE);
-  return next[0];
+
+  for (const item of prepared) {
+    void enqueueFile(item, 'VIDEO', SYNC_ACTIONS.CREATE);
+  }
+  return prepared;
+};
+
+export const addVideoItem = async (video) => {
+  const result = await addVideoItems([video]);
+  return result[0];
 };
 
 export const deleteVideoItem = async (id) => {
@@ -356,6 +379,11 @@ export const deleteVideoItem = async (id) => {
   await writeJson(STORAGE_KEYS.videoItems, next);
   if (deleted) {
     void enqueueFile(deleted, 'VIDEO', SYNC_ACTIONS.DELETE);
+    if (deleted.uri) {
+      void FileSystem.deleteAsync(deleted.uri, { idempotent: true }).catch((err) =>
+        console.warn('Lỗi xóa file video cục bộ:', err.message)
+      );
+    }
   }
   return next;
 };
@@ -409,12 +437,22 @@ export const getDocumentItems = async () => {
   return docs.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
 };
 
-export const addDocumentItem = async (doc) => {
+export const addDocumentItems = async (docs) => {
+  if (!Array.isArray(docs) || docs.length === 0) return [];
   const existing = await getDocumentItems();
-  const next = [{ ...doc, id: doc.id || generateId() }, ...existing];
+  const prepared = docs.map((d) => ({ ...d, id: d.id || generateId() }));
+  const next = [...prepared, ...existing];
   await writeJson(STORAGE_KEYS.documentItems, next);
-  void enqueueFile(next[0], 'DOCUMENT', SYNC_ACTIONS.CREATE);
-  return next[0];
+
+  for (const item of prepared) {
+    void enqueueFile(item, 'DOCUMENT', SYNC_ACTIONS.CREATE);
+  }
+  return prepared;
+};
+
+export const addDocumentItem = async (doc) => {
+  const result = await addDocumentItems([doc]);
+  return result[0];
 };
 
 export const deleteDocumentItem = async (id) => {
@@ -424,6 +462,11 @@ export const deleteDocumentItem = async (id) => {
   await writeJson(STORAGE_KEYS.documentItems, next);
   if (deleted) {
     void enqueueFile(deleted, 'DOCUMENT', SYNC_ACTIONS.DELETE);
+    if (deleted.uri) {
+      void FileSystem.deleteAsync(deleted.uri, { idempotent: true }).catch((err) =>
+        console.warn('Lỗi xóa file tài liệu cục bộ:', err.message)
+      );
+    }
   }
   return next;
 };
@@ -451,6 +494,11 @@ export const deleteVoiceItem = async (id) => {
   await writeJson(STORAGE_KEYS.voiceItems, next);
   if (deleted) {
     void enqueueFile(deleted, 'VOICE', SYNC_ACTIONS.DELETE);
+    if (deleted.uri) {
+      void FileSystem.deleteAsync(deleted.uri, { idempotent: true }).catch((err) =>
+        console.warn('Lỗi xóa file ghi âm cục bộ:', err.message)
+      );
+    }
   }
   return next;
 };

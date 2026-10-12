@@ -78,7 +78,7 @@ export default function PhotoVaultScreen({
       )}
 
       <TouchableOpacity style={styles.importButton} disabled={importing} onPress={onImportPhoto}>
-        <Text style={styles.importButtonText}>{importing ? 'Đang import...' : 'Import ảnh từ thư viện'}</Text>
+        <Text style={styles.importButtonText}>{importing ? 'Đang import...' : '＋ Import ảnh từ thư viện (chọn nhiều)'}</Text>
       </TouchableOpacity>
     </View>
   );

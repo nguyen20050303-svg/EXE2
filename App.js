@@ -23,8 +23,11 @@ import HiddenSettingsScreen from './src/screens/settings/HiddenSettingsScreen';
 import { logAppOpen, logDisguiseChange } from './src/services/analytics';
 import {
   addDocumentItem,
+  addDocumentItems,
   addPhotoItem,
+  addPhotoItems,
   addVideoItem,
+  addVideoItems,
   addVoiceItem,
   createPublicNote,
   createVaultNote,
@@ -301,14 +304,19 @@ function MainAppContent() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
+        allowsMultipleSelection: true,
         quality: 1,
         allowsEditing: false,
       });
 
-      if (result.canceled) return;
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
 
-      const imported = await importPhotoToVault(result.assets[0]);
-      await addPhotoItem(imported);
+      const importedList = [];
+      for (const asset of result.assets) {
+        const imported = await importPhotoToVault(asset);
+        importedList.push(imported);
+      }
+      await addPhotoItems(importedList);
       await loadVaultData('real');
     } catch (error) {
       console.error('Import photo thất bại:', error);
@@ -338,13 +346,18 @@ function MainAppContent() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['videos'],
+        allowsMultipleSelection: true,
         allowsEditing: false,
       });
 
-      if (result.canceled) return;
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
 
-      const imported = await importVideoToVault(result.assets[0]);
-      await addVideoItem(imported);
+      const importedList = [];
+      for (const asset of result.assets) {
+        const imported = await importVideoToVault(asset);
+        importedList.push(imported);
+      }
+      await addVideoItems(importedList);
       await loadVaultData('real');
     } catch (error) {
       console.error('Import video thất bại:', error);
@@ -386,14 +399,21 @@ function MainAppContent() {
 
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
+        multiple: true,
         copyToCacheDirectory: true,
       });
 
       if (result.canceled) return;
 
-      const asset = result.assets ? result.assets[0] : result;
-      const imported = await importDocumentToVault(asset);
-      await addDocumentItem(imported);
+      const assets = result.assets || (result.uri ? [result] : []);
+      if (assets.length === 0) return;
+
+      const importedList = [];
+      for (const asset of assets) {
+        const imported = await importDocumentToVault(asset);
+        importedList.push(imported);
+      }
+      await addDocumentItems(importedList);
       await loadVaultData('real');
     } catch (error) {
       console.error('Import document thất bại:', error);

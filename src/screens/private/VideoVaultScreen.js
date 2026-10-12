@@ -130,7 +130,7 @@ export default function VideoVaultScreen({
         {importing ? (
           <ActivityIndicator size="small" color="#0F172A" />
         ) : (
-          <Text style={styles.importButtonText}>＋ Import video từ máy</Text>
+          <Text style={styles.importButtonText}>＋ Import video từ máy (chọn nhiều)</Text>
         )}
       </TouchableOpacity>
 
