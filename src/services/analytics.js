@@ -5,8 +5,8 @@ const GA_ENDPOINT = 'https://www.google-analytics.com/mp/collect';
 const GA_DEBUG_ENDPOINT = 'https://www.google-analytics.com/debug/mp/collect';
 
 export const GA_CONFIG = {
-  firebaseAppId: '15835133782',
-  apiSecret: 'l8rZ_4IkQPykpULaVYVfww',
+  firebaseAppId: '1:524206096279:android:3fc3629033491040938ed2',
+  apiSecret: 'kgF3jLh6TImsN0_1BzCkhg',
 };
 
 const STORAGE_INSTANCE_ID_KEY = 'hidder.analytics.app_instance_id';
