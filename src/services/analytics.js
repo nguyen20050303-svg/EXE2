@@ -130,3 +130,54 @@ export const logSetupComplete = (disguiseType, biometricEnabled) =>
     initial_disguise: disguiseType,
     biometric_enabled: Boolean(biometricEnabled),
   });
+
+// ====================================================================
+// CÁC SỰ KIỆN ĐO LƯỜNG HÀNH VI CỐT LÕI (CORE FEATURE LOOP)
+// ====================================================================
+
+/**
+ * 1. Mở và sử dụng lớp vỏ ngụy trang bên ngoài
+ * @param {string} shellType 'calculator' | 'notes' | 'weather' | 'calendar'
+ */
+export const logOpenOuterShell = (shellType) =>
+  trackEvent('open_outer_shell', {
+    shell_type: shellType || 'notes',
+  });
+
+/**
+ * 2. Mở khóa két sắt bí mật bên trong
+ * @param {'real' | 'decoy'} vaultMode Két thật (real) hay két mồi (decoy)
+ * @param {'pin' | 'biometric'} authMethod Mở bằng mã PIN hay sinh trắc học
+ * @param {string} shellSource Vỏ ngụy trang đang mở từ đó
+ */
+export const logUnlockVault = (vaultMode = 'real', authMethod = 'pin', shellSource = 'notes') =>
+  trackEvent('unlock_vault', {
+    vault_mode: vaultMode,
+    auth_method: authMethod,
+    shell_source: shellSource,
+  });
+
+/**
+ * 3. Đưa / tải tệp riêng tư vào két sắt
+ * @param {'photo' | 'video' | 'document' | 'voice' | 'note' | 'password'} mediaType Loại dữ liệu
+ * @param {number} itemCount Số lượng tệp hoặc mục được thêm
+ */
+export const logImportVaultItem = (mediaType, itemCount = 1) =>
+  trackEvent('import_vault_item', {
+    media_type: mediaType,
+    item_count: Math.max(1, itemCount),
+  });
+
+/**
+ * 4. Kích hoạt đồng bộ hóa dữ liệu lên Cloud
+ * @param {'manual_click' | 'auto_sync'} triggerType Bấm thủ công hay chạy tự động
+ * @param {'success' | 'partial' | 'failed'} syncStatus Kết quả đồng bộ
+ * @param {number} itemsCount Số lượng mục đồng bộ
+ */
+export const logTriggerCloudSync = (triggerType = 'manual_click', syncStatus = 'success', itemsCount = 0) =>
+  trackEvent('trigger_cloud_sync', {
+    trigger_type: triggerType,
+    sync_status: syncStatus,
+    items_count: itemsCount,
+  });
+

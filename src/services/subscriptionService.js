@@ -43,8 +43,8 @@ export const STORAGE_PLANS = [
     storageLabel: "5 GB",
     storageBytes: 5120 * 1024 * 1024, // 5,368,709,120 bytes
     description: "Dung lượng lớn hơn cho nhiều file cá nhân.",
-    priceText: "52k/tháng",
-    priceValue: 52000,
+    priceText: "92k/tháng",
+    priceValue: 92000,
     aliasId: "PLUS_5GB",
   },
 ];

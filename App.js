@@ -20,7 +20,13 @@ import DocumentVaultScreen from './src/screens/private/DocumentVaultScreen';
 import VoiceVaultScreen from './src/screens/private/VoiceVaultScreen';
 import AccountScreen from './src/screens/private/AccountScreen';
 import HiddenSettingsScreen from './src/screens/settings/HiddenSettingsScreen';
-import { logAppOpen, logDisguiseChange } from './src/services/analytics';
+import {
+  logAppOpen,
+  logDisguiseChange,
+  logImportVaultItem,
+  logOpenOuterShell,
+  logTriggerCloudSync,
+} from './src/services/analytics';
 import {
   addDocumentItem,
   addDocumentItems,
@@ -107,6 +113,12 @@ function MainAppContent() {
       void logDisguiseChange(disguiseType);
     }
   }, [disguiseType]);
+
+  useEffect(() => {
+    if (!isUnlocked && isSetupComplete && currentUser && disguiseType) {
+      void logOpenOuterShell(disguiseType);
+    }
+  }, [isUnlocked, isSetupComplete, currentUser, disguiseType]);
 
   // Vault data states
   const [vaultSummary, setVaultSummary] = useState({
@@ -237,6 +249,7 @@ function MainAppContent() {
   const handleCreateVaultNote = async (note) => {
     await createVaultNote(activeVaultMode, note);
     await loadVaultData(activeVaultMode);
+    void logImportVaultItem('note', 1);
   };
 
   const handleDeleteVaultNote = async (id) => {
@@ -252,6 +265,12 @@ function MainAppContent() {
         setLastSync(res.timestamp);
         await loadVaultData(activeVaultMode);
         await loadPublicNotes();
+        const uploaded = res.queueResult?.processed || 0;
+        const notesPulled = res.pullResult?.notesPulled || 0;
+        const filesPulled = res.pullResult?.filesPulled || 0;
+        const totalItems = uploaded + notesPulled + filesPulled;
+        void logTriggerCloudSync('manual_click', 'success', totalItems);
+
         if (res.isQuotaFull) {
           Alert.alert(
             'Dung lượng Cloud đã đầy (Storage Full)',
@@ -262,9 +281,6 @@ function MainAppContent() {
             ]
           );
         } else {
-          const uploaded = res.queueResult?.processed || 0;
-          const notesPulled = res.pullResult?.notesPulled || 0;
-          const filesPulled = res.pullResult?.filesPulled || 0;
           const msg = [
             `Đã đồng bộ xong lúc ${res.timestamp}`,
             `• Tải lên Cloud: ${uploaded} mục`,
@@ -276,14 +292,17 @@ function MainAppContent() {
         setLastSync(res.timestamp);
         await loadVaultData(activeVaultMode);
         await loadPublicNotes();
+        void logTriggerCloudSync('manual_click', 'partial', 0);
         Alert.alert(
           'Đồng bộ hoàn tất một phần',
           `Một số dữ liệu đã đồng bộ nhưng có cảnh báo:\n${res.error || 'Vui lòng kiểm tra lại kết nối mạng.'}`
         );
       } else {
+        void logTriggerCloudSync('manual_click', 'failed', 0);
         Alert.alert('Đồng bộ thất bại', res.error || 'Vui lòng kiểm tra lại kết nối mạng.');
       }
     } catch (err) {
+      void logTriggerCloudSync('manual_click', 'failed', 0);
       Alert.alert('Lỗi', err.message);
     } finally {
       setIsSyncing(false);
@@ -318,6 +337,7 @@ function MainAppContent() {
       }
       await addPhotoItems(importedList);
       await loadVaultData('real');
+      void logImportVaultItem('photo', importedList.length);
     } catch (error) {
       console.error('Import photo thất bại:', error);
       Alert.alert('Import thất bại', 'Không thể đưa ảnh vào photo vault.');
@@ -359,6 +379,7 @@ function MainAppContent() {
       }
       await addVideoItems(importedList);
       await loadVaultData('real');
+      void logImportVaultItem('video', importedList.length);
     } catch (error) {
       console.error('Import video thất bại:', error);
       Alert.alert('Import thất bại', 'Không thể đưa video vào kho.');
@@ -377,6 +398,7 @@ function MainAppContent() {
   const handleSavePassword = async (item) => {
     await savePasswordItem(item);
     await loadVaultData(activeVaultMode);
+    void logImportVaultItem('password', 1);
   };
 
   const handleDeletePassword = async (id) => {
@@ -415,6 +437,7 @@ function MainAppContent() {
       }
       await addDocumentItems(importedList);
       await loadVaultData('real');
+      void logImportVaultItem('document', importedList.length);
     } catch (error) {
       console.error('Import document thất bại:', error);
       Alert.alert('Import thất bại', 'Không thể đưa tài liệu vào kho.');
@@ -435,6 +458,7 @@ function MainAppContent() {
       const saved = await saveAudioToVault(uri, customName);
       await addVoiceItem(saved);
       await loadVaultData('real');
+      void logImportVaultItem('voice', 1);
       Alert.alert('Đã lưu', 'Bản ghi âm đã được cất vào kho bí mật.');
     } catch (error) {
       console.error('Lưu ghi âm thất bại:', error);
