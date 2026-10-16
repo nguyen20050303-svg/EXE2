@@ -62,6 +62,7 @@ import {
   clearActiveMasterKey,
 } from "../services/crypto";
 import { syncAppIconWithDisguise } from "../services/appIcon";
+import { logUnlockVault } from "../services/analytics";
 
 export const AuthContext = createContext(null);
 
@@ -371,6 +372,7 @@ export const AuthProvider = ({ children }) => {
       if (normalizedInput && normalizedInput === normalizeCode(realCode)) {
         setIsUnlocked(true);
         setActiveVaultMode("real");
+        void logUnlockVault("real", "pin", disguiseType);
         return "real";
       }
 
@@ -381,6 +383,7 @@ export const AuthProvider = ({ children }) => {
       ) {
         setIsUnlocked(true);
         setActiveVaultMode("decoy");
+        void logUnlockVault("decoy", "pin", disguiseType);
         return "decoy";
       }
 
@@ -406,6 +409,7 @@ export const AuthProvider = ({ children }) => {
       if (result.success) {
         setIsUnlocked(true);
         setActiveVaultMode("real");
+        void logUnlockVault("real", "biometric", disguiseType);
         return true;
       }
 

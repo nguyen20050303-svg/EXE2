@@ -144,7 +144,7 @@ Gồm 6 phân hệ quản lý dữ liệu an toàn:
   * **Free:** 256 MB (0đ/tháng - Vĩnh viễn)
   * **Basic:** 500 MB (12.000đ/tháng)
   * **Standard:** 1.5 GB (32.000đ/tháng)
-  * **Premium:** 5 GB (52.000đ/tháng)
+  * **Premium:** 5 GB (92.000đ/tháng)
 * **Cơ chế Kiểm soát Hạn ngạch & Hết hạn (Quota & Downgrade Handling):**
   * Kiểm soát dung lượng Authoritative từ máy chủ (Server-side RPC `check_storage_quota`).
   * Khi gói trả phí hết hạn: Hệ thống tự động chuyển về gói Free 256 MB, **TUYỆT ĐỐI KHÔNG XÓA FILE CỦA NGƯỜI DÙNG**.

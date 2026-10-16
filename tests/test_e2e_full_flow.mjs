@@ -1491,12 +1491,48 @@ await it("47. Physical File Cleanup: database.js gọi FileSystem.deleteAsync kh
   );
 });
 
+// ====================================================================
+// 14. CORE GOOGLE ANALYTICS 4 MEASUREMENT PIPELINE
+// ====================================================================
+console.log("\n--- 14. Google Analytics 4 Core Metrics Pipeline ---");
+
+await it("48. Analytics Service: Export đầy đủ 4 hàm đo lường sản phẩm lõi", async () => {
+  const analyticsCode = fs.readFileSync("src/services/analytics.js", "utf8");
+
+  assert(analyticsCode.includes("export const logOpenOuterShell"), "Phải có hàm logOpenOuterShell");
+  assert(analyticsCode.includes("export const logUnlockVault"), "Phải có hàm logUnlockVault");
+  assert(analyticsCode.includes("export const logImportVaultItem"), "Phải có hàm logImportVaultItem");
+  assert(analyticsCode.includes("export const logTriggerCloudSync"), "Phải có hàm logTriggerCloudSync");
+});
+
+await it("49. AuthContext Unlock Tracking: Kích hoạt logUnlockVault cho cả PIN và Biometrics", async () => {
+  const authCode = fs.readFileSync("src/context/AuthContext.js", "utf8");
+
+  assert(authCode.includes('logUnlockVault("real", "pin", disguiseType)'), "Phải log khi mở PIN thật");
+  assert(authCode.includes('logUnlockVault("decoy", "pin", disguiseType)'), "Phải log khi mở PIN mồi");
+  assert(authCode.includes('logUnlockVault("real", "biometric", disguiseType)'), "Phải log khi mở bằng vân tay");
+});
+
+await it("50. App.js Engagement Tracking: Tích hợp đo Outer Shell, Import Files & Cloud Sync", async () => {
+  const appCode = fs.readFileSync("App.js", "utf8");
+
+  assert(appCode.includes("logOpenOuterShell(disguiseType)"), "Phải theo dõi số lần vào vỏ ngoài");
+  assert(appCode.includes("logImportVaultItem('photo'"), "Phải theo dõi import ảnh");
+  assert(appCode.includes("logImportVaultItem('video'"), "Phải theo dõi import video");
+  assert(appCode.includes("logImportVaultItem('document'"), "Phải theo dõi import tài liệu");
+  assert(appCode.includes("logImportVaultItem('voice'"), "Phải theo dõi lưu ghi âm");
+  assert(appCode.includes("logImportVaultItem('note'"), "Phải theo dõi tạo ghi chú");
+  assert(appCode.includes("logImportVaultItem('password'"), "Phải theo dõi lưu mật khẩu");
+  assert(appCode.includes("logTriggerCloudSync("), "Phải theo dõi số lần bấm đồng bộ Cloud");
+});
+
 console.log("\n=============================================================");
 console.log(
   `  KẾT QUẢ KIỂM THỬ: ${passedTests} / ${totalTests} BÀI TEST ĐÃ VƯỢT QUA`,
 );
 console.log(`  TRẠNG THÁI: TẤT CẢ CÁC LUỒNG HỆ THỐNG ĐẠT CHUẨN 100%!`);
 console.log("=============================================================\n");
+
 
 if (passedTests !== totalTests) {
   process.exit(1);
