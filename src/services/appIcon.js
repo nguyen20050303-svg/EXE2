@@ -8,6 +8,15 @@ try {
   // Graceful fallback for web/testing/unsupported environments
 }
 
+// Global flag to prevent changing launcher icon / activity alias while user is in a system picker
+let _isPickerActive = false;
+
+export const setAppIconPickerActive = (active) => {
+  _isPickerActive = Boolean(active);
+};
+
+export const isAppIconPickerActive = () => _isPickerActive;
+
 /**
  * Synchronize device home screen app icon with the user's active disguise shell.
  * @param {string} disguiseType - 'calculator' | 'notes' | 'weather' | 'calendar'
@@ -27,6 +36,12 @@ export const syncAppIconWithDisguise = async (disguiseType) => {
       ? disguiseType
       : null;
 
+    // Tránh đổi lại nếu icon hiện tại đã khớp (tránh Android kill process khi không cần thiết)
+    const currentIcon = await getCurrentAppIcon();
+    if (currentIcon && targetIcon && currentIcon.toLowerCase() === targetIcon.toLowerCase()) {
+      return true;
+    }
+
     // Apply as soon as the app enters the background so the launcher label and icon
     // switch together when the user returns to the Home screen.
     const res = await DynamicAppIconModule.setAppIcon(targetIcon, false);
@@ -35,8 +50,19 @@ export const syncAppIconWithDisguise = async (disguiseType) => {
     // refresh launcher aliases after the activity has actually paused.
     if (AppState.currentState === "active") {
       let retried = false;
-      const subscription = AppState.addEventListener("change", (state) => {
+      const subscription = AppState.addEventListener("change", async (state) => {
         if (!retried && state === "background") {
+          // QUAN TRỌNG: Nếu đang mở picker hệ thống (chọn ảnh/tài liệu/video),
+          // TUYỆT ĐỐI không đổi alias lúc này vì Android OS sẽ kill process app!
+          if (_isPickerActive) {
+            return;
+          }
+          const nowCurrent = await getCurrentAppIcon();
+          if (nowCurrent && targetIcon && nowCurrent.toLowerCase() === targetIcon.toLowerCase()) {
+            retried = true;
+            subscription.remove();
+            return;
+          }
           retried = true;
           subscription.remove();
           void DynamicAppIconModule.setAppIcon(targetIcon, false);
