@@ -19,6 +19,7 @@ import {
 } from "../../services/syncManager";
 import { formatBytes, confirmAction } from "../../utils/helpers";
 import DisguiseGuideModal from "../../components/DisguiseGuideModal";
+import FeedbackModal from "../../components/FeedbackModal";
 
 export default function AccountScreen({
   onBack,
@@ -43,6 +44,7 @@ export default function AccountScreen({
   });
   const [pendingCount, setPendingCount] = useState(0);
   const [showGuideModal, setShowGuideModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -314,6 +316,15 @@ export default function AccountScreen({
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={styles.feedbackButton}
+              onPress={() => setShowFeedbackModal(true)}
+            >
+              <Text style={styles.feedbackButtonText}>
+                💬 Đánh giá & Góp ý ứng dụng
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={styles.policyButton}
               onPress={handleShowPrivacyPolicy}
             >
@@ -368,6 +379,12 @@ export default function AccountScreen({
       <DisguiseGuideModal
         visible={showGuideModal}
         onClose={() => setShowGuideModal(false)}
+      />
+
+      <FeedbackModal
+        visible={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        currentUser={currentUser}
       />
     </KeyboardAvoidingView>
   );
@@ -648,6 +665,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     textAlign: "center",
+  },
+  feedbackButton: {
+    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(99, 102, 241, 0.35)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  feedbackButtonText: {
+    color: "#818CF8",
+    fontSize: 14,
+    fontWeight: "700",
   },
   policyButton: {
     backgroundColor: "rgba(56, 189, 248, 0.08)",
