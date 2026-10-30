@@ -29,3 +29,21 @@ export const formatDate = (dateString) => {
   }
 };
 
+export const isPaidSubscription = (sub) => {
+  if (!sub || !sub.plan) return false;
+  const plan = String(sub.plan).toUpperCase();
+  if (plan === 'FREE' || plan === 'FREE_256MB' || plan === 'FREE_TRIAL') return false;
+  const status = String(sub.status || '').toUpperCase();
+  if (status && status !== 'ACTIVE' && status !== 'PAID') return false;
+  return true;
+};
+
+export const formatPlanName = (planId) => {
+  if (!planId) return 'Free 256MB';
+  const p = String(planId).toUpperCase();
+  if (p.includes('500MB') || p === 'BASIC') return 'Basic 500MB';
+  if (p.includes('1_5GB') || p === 'STANDARD') return 'Standard 1.5GB';
+  if (p.includes('5GB') || p === 'PREMIUM' || p === 'PLUS') return 'Premium 5GB';
+  if (p === 'FREE' || p.includes('256MB')) return 'Free 256MB';
+  return planId;
+};

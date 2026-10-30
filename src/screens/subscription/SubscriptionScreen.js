@@ -147,7 +147,7 @@ export default function SubscriptionScreen({ onBack = null }) {
         setQrModalVisible(false);
         Alert.alert(
           "Đã gửi yêu cầu xác minh",
-          `Gói ${selectedPlan.name} đang chờ kiểm tra giao dịch. Gói chỉ được cập nhật sau khi hệ thống xác nhận khoản chuyển khoản.`,
+          `Gói ${selectedPlan.name} đang chờ kiểm tra giao dịch. Gói chỉ được cập nhật sau khi hệ thống xác nhận khoản chuyển khoản.\n\nSau khi chuyển khoản thành công bạn hãy khởi động lại app để áp dụng gói dịch vụ.`,
           [{ text: "Bắt đầu sử dụng" }],
         );
       } else {
@@ -435,6 +435,12 @@ export default function SubscriptionScreen({ onBack = null }) {
         </View>
 
         {/* Primary Action: Thanh toán Chuyển khoản VietQR */}
+        <View style={styles.postPaymentNoticeCard}>
+          <Text style={styles.postPaymentNoticeIcon}>💡</Text>
+          <Text style={styles.postPaymentNoticeText}>
+            Sau khi chuyển khoản thành công bạn hãy khởi động lại app để áp dụng gói dịch vụ.
+          </Text>
+        </View>
         {isPaidActive && subscriptionAccess?.planId === selectedPlanId ? null : (
           <TouchableOpacity
             style={[
@@ -647,6 +653,13 @@ export default function SubscriptionScreen({ onBack = null }) {
                     </TouchableOpacity>
                   </View>
                 </View>
+              </View>
+
+              <View style={styles.modalNoticeCard}>
+                <Text style={styles.modalNoticeIcon}>💡</Text>
+                <Text style={styles.modalNoticeText}>
+                  Sau khi chuyển khoản thành công bạn hãy khởi động lại app để áp dụng gói dịch vụ.
+                </Text>
               </View>
 
               {/* Confirm Paid Button */}
@@ -1329,6 +1342,50 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(56, 189, 248, 0.3)",
+  },
+  postPaymentNoticeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  postPaymentNoticeIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  postPaymentNoticeText: {
+    flex: 1,
+    color: '#E2E8F0',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  modalNoticeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  modalNoticeIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  modalNoticeText: {
+    flex: 1,
+    color: '#38BDF8',
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   currentPlanBadgeText: {
     color: "#38BDF8",

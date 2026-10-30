@@ -1,8 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Search, HardDrive, UserCheck, ShieldAlert, Sparkles, Filter, Copy, Check } from 'lucide-react';
-import { formatBytes, formatDate } from '../utils/helpers';
+import { formatBytes, formatDate, isPaidSubscription, formatPlanName } from '../utils/helpers';
 
-export default function UsersTab({ users = [], subscriptions = [], files = [], loading }) {
+export default function UsersTab({
+  users = [],
+  subscriptions = [],
+  files = [],
+  paidUserIds = new Set(),
+  loading,
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPlan, setFilterPlan] = useState('ALL'); // ALL | FREE | PAID
   const [selectedUser, setSelectedUser] = useState(null);
@@ -34,14 +40,14 @@ export default function UsersTab({ users = [], subscriptions = [], files = [], l
       const matchSearch = email.includes(searchTerm.toLowerCase()) || id.includes(searchTerm.toLowerCase());
 
       const sub = subMap.get(u.id);
-      const isPaid = sub && (sub.status === 'ACTIVE' || sub.plan === 'BASIC' || sub.plan === 'PRO');
+      const isPaid = paidUserIds.has(u.id) || isPaidSubscription(sub);
 
       if (!matchSearch) return false;
       if (filterPlan === 'PAID') return isPaid;
       if (filterPlan === 'FREE') return !isPaid;
       return true;
     });
-  }, [users, subMap, searchTerm, filterPlan]);
+  }, [users, subMap, paidUserIds, searchTerm, filterPlan]);
 
   // Aggregate Metrics
   const totalStorage = useMemo(() => {
@@ -103,7 +109,7 @@ export default function UsersTab({ users = [], subscriptions = [], files = [], l
             </div>
           </div>
           <div className="text-2xl font-bold text-emerald-400 mt-2">
-            {subscriptions.filter((s) => s.status === 'ACTIVE' || s.plan === 'BASIC' || s.plan === 'PRO').length}
+            {paidUserIds.size}
           </div>
           <div className="text-[11px] text-emerald-400/80 mt-1">Đã kích hoạt gói lưu trữ</div>
         </div>
@@ -188,7 +194,7 @@ export default function UsersTab({ users = [], subscriptions = [], files = [], l
               ) : (
                 filteredUsers.map((u) => {
                   const sub = subMap.get(u.id);
-                  const isPaid = sub && (sub.status === 'ACTIVE' || sub.plan === 'BASIC' || sub.plan === 'PRO');
+                  const isPaid = paidUserIds.has(u.id) || isPaidSubscription(sub);
                   const filesCount = fileCountMap.get(u.id) || 0;
                   const storageUsed = Number(u.storage_used) || 0;
                   const storageLimit = Number(u.storage_limit) || 268435456; // 256MB default
@@ -238,7 +244,7 @@ export default function UsersTab({ users = [], subscriptions = [], files = [], l
                       <td className="py-3.5 px-4">
                         {isPaid ? (
                           <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            ★ {sub.plan || 'BASIC'}
+                            ★ {formatPlanName(sub?.plan || 'BASIC')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
@@ -343,4 +349,3 @@ export default function UsersTab({ users = [], subscriptions = [], files = [], l
     </div>
   );
 }
-

@@ -62,12 +62,10 @@ export default function VaultDashboardScreen({
       {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.headerTitleBox}>
-          <Text style={styles.eyebrow}>{isDecoy ? 'Kho giả' : 'Kho bảo mật'}</Text>
-          <Text style={styles.title}>{isDecoy ? 'Safe Space' : 'Private Space'}</Text>
+          <Text style={styles.eyebrow}>Kho bảo mật</Text>
+          <Text style={styles.title}>Private Space</Text>
           <Text style={styles.subtitle}>
-            {isDecoy
-              ? 'Nội dung vô hại để giữ lớp vỏ an toàn khi bị ép mở.'
-              : 'Hệ sinh thái bảo mật local-first, chỉ mở bằng mã thật.'}
+            Hệ sinh thái bảo mật local-first, chỉ mở bằng mã thật.
           </Text>
         </View>
 
@@ -188,7 +186,7 @@ export default function VaultDashboardScreen({
 
       {/* Feature Grid Header */}
       <Text style={styles.sectionTitle}>
-        {isDecoy ? 'Kho giả đánh lạc hướng' : 'Các Kho Bảo Mật'}
+        Các Kho Bảo Mật
       </Text>
 
       {/* Modules Grid */}
@@ -198,11 +196,11 @@ export default function VaultDashboardScreen({
           <View style={[styles.iconWrap, { backgroundColor: '#1E3A8A' }]}>
             <Text style={styles.iconEmoji}>📝</Text>
           </View>
-          <Text style={styles.gridItemTitle}>{isDecoy ? 'Ghi chú giả' : 'Ghi chú bí mật'}</Text>
+          <Text style={styles.gridItemTitle}>Ghi chú bí mật</Text>
           <Text style={styles.gridItemCount}>{summary.noteCount || 0} ghi chú</Text>
         </TouchableOpacity>
 
-        {!isDecoy ? (
+        <>
           <>
             {/* Photos */}
             <TouchableOpacity style={styles.gridItem} onPress={onOpenPhotos}>
@@ -249,14 +247,7 @@ export default function VaultDashboardScreen({
               <Text style={styles.gridItemCount}>{summary.voiceCount || 0} bản ghi</Text>
             </TouchableOpacity>
           </>
-        ) : (
-          <View style={styles.decoyShieldBox}>
-            <Text style={styles.decoyShieldTitle}>🛡️ Decoy Shield Active</Text>
-            <Text style={styles.decoyShieldBody}>
-              Kho giả lập chỉ hiển thị các ghi chú an toàn để bảo vệ tuyệt đối kho thật của bạn khi bị ép mở ứng dụng.
-            </Text>
-          </View>
-        )}
+        </>
       </View>
 
       <View style={{ height: 40 }} />

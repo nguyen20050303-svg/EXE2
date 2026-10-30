@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, CreditCard, MessageSquareQuote, Shield, Activity, RefreshCw } from 'lucide-react';
+import { Users, CreditCard, Cloud, MessageSquareQuote, Shield, RefreshCw } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, onRefresh, isRefreshing, stats }) {
   const navItems = [
@@ -17,6 +17,16 @@ export default function Sidebar({ activeTab, setActiveTab, onRefresh, isRefreshi
       icon: CreditCard,
       badge: stats?.paid_users ?? 0,
       badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    },
+    {
+      id: 'sync-monitor',
+      label: 'Tiến trình đồng bộ',
+      subtitle: 'Giám sát file Cloud & lỗi sync',
+      icon: Cloud,
+      badge: stats?.sync_issues > 0 ? `${stats.sync_issues} lỗi` : (stats?.total_files ?? 0),
+      badgeColor: stats?.sync_issues > 0 
+        ? 'bg-red-500/20 text-red-400 border-red-500/30 font-bold' 
+        : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
     },
     {
       id: 'feedback',
@@ -120,4 +130,3 @@ export default function Sidebar({ activeTab, setActiveTab, onRefresh, isRefreshi
     </aside>
   );
 }
-

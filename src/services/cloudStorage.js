@@ -148,7 +148,7 @@ export const requestSignedUploadUrl = async ({
     // Use Supabase native Storage API
     const { data, error } = await supabase.storage
       .from('vault')
-      .createSignedUploadUrl(storagePath);
+      .createSignedUploadUrl(storagePath, { upsert: true });
 
     if (error) {
       return {
@@ -336,12 +336,11 @@ export const uploadFile = async ({
     const headers = {
       'Content-Type': 'application/octet-stream',
       'apikey': SUPABASE_ANON_KEY,
+      'x-upsert': 'true',
     };
-    if (signedRes.token) {
-      headers['Authorization'] = `Bearer ${signedRes.token}`;
-    }
 
-    const uploadResult = await FileSystem.uploadAsync(
+    // 60-second timeout guard to prevent uploads from hanging indefinitely
+    const uploadPromise = FileSystem.uploadAsync(
       signedRes.signedUrl,
       encryptionResult.encryptedUri,
       {
@@ -349,6 +348,12 @@ export const uploadFile = async ({
         headers,
       }
     );
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Tải lên bị quá thời gian (timeout 60s), vui lòng thử lại')), 60000)
+    );
+
+    const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
 
     // Clean up temporary encrypted file immediately after upload attempt
     try {

@@ -363,8 +363,23 @@ export const processSyncQueue = async (userId, options = {}) => {
   let paused = 0;
   const failedItems = [];
 
-  for (let i = 0; i < queue.length; i++) {
-    const item = queue[i];
+  // Prioritize queue tasks for fastest, smoothest sync:
+  // 1. DELETE actions first (free up storage immediately)
+  // 2. NOTE & PASSWORD (lightweight text data, completes in <100ms for instant UX)
+  // 3. Media files (PHOTO, DOCUMENT, VOICE, VIDEO)
+  const getPriority = (item) => {
+    if (item.action === SYNC_ACTIONS.DELETE) return 0;
+    if (item.entityType === SYNC_ENTITY_TYPES.NOTE || item.entityType === SYNC_ENTITY_TYPES.PASSWORD) return 1;
+    if (item.entityType === SYNC_ENTITY_TYPES.PHOTO) return 2;
+    if (item.entityType === SYNC_ENTITY_TYPES.DOCUMENT) return 3;
+    if (item.entityType === SYNC_ENTITY_TYPES.VOICE) return 4;
+    return 5;
+  };
+
+  const sortedQueue = [...queue].sort((a, b) => getPriority(a) - getPriority(b));
+
+  for (let i = 0; i < sortedQueue.length; i++) {
+    const item = sortedQueue[i];
 
     // Only process PENDING or FAILED with retries remaining
     if (item.status !== QUEUE_STATUS.PENDING && (item.status !== QUEUE_STATUS.FAILED || item.retryCount >= item.maxRetries)) {
@@ -492,7 +507,7 @@ export const processSyncQueue = async (userId, options = {}) => {
   }
 
   // Prune synced items and save
-  const remaining = queue.filter((item) => item.status !== QUEUE_STATUS.SYNCED);
+  const remaining = sortedQueue.filter((item) => item.status !== QUEUE_STATUS.SYNCED);
   await saveSyncQueue(userId, remaining);
 
   return { processed, failed, paused, remaining: remaining.length, failedItems };
@@ -674,9 +689,14 @@ export const pullCloudChanges = async (userId, options = {}) => {
           continue;
         }
 
-        // Check if file already exists locally
+        // Check if file already exists locally (by ID or filename + size)
         const existingIndex = categoryConfig.list.findIndex(
-          (item) => item.id === remoteFile.id || item.cloudFileId === remoteFile.id
+          (item) =>
+            item.id === remoteFile.id ||
+            item.cloudFileId === remoteFile.id ||
+            (item.name &&
+              item.name === remoteFile.original_name &&
+              Math.abs((Number(item.size) || 0) - (Number(remoteFile.size_bytes) || 0)) < 256)
         );
 
         if (existingIndex >= 0) {
@@ -687,8 +707,8 @@ export const pullCloudChanges = async (userId, options = {}) => {
           continue;
         }
 
-        // File exists on Cloud but NOT on this device -> download and decrypt
-        if (remoteFile.sync_status === SYNC_STATUS.CLOUD || remoteFile.sync_status === SYNC_STATUS.UPLOADING) {
+        // File exists on Cloud: ONLY pull completed CLOUD files (never pull UPLOADING/interrupted files)
+        if (remoteFile.sync_status === SYNC_STATUS.CLOUD && !remoteFile.is_deleted) {
           const ext = remoteFile.original_name ? remoteFile.original_name.split('.').pop() : 'dat';
           const destinationUri = `${categoryConfig.dir}${remoteFile.id}.${ext}`;
 
@@ -762,20 +782,51 @@ export const reconcileLocalFilesWithQueue = async (userId) => {
       { items: voices, category: 'VOICE' },
     ];
 
+    let hasNewItems = false;
     for (const { items, category } of categories) {
       for (const item of items) {
         if (!item || !item.uri) continue;
-        // Check if item has already been enqueued or already synced
+        // Check if item has already been enqueued (in ANY status) or already synced
         const inQueue = queue.some(
-          (q) => (q.entityId === item.id || q.payload?.id === item.id) &&
-                 (q.status === QUEUE_STATUS.PENDING || q.status === QUEUE_STATUS.FAILED)
+          (q) =>
+            q.entityId === item.id ||
+            q.payload?.id === item.id ||
+            q.payload?.fileId === item.id ||
+            (q.payload?.uri && q.payload.uri === item.uri)
         );
 
         if (!inQueue && !item.cloudFileId) {
-          await enqueueFile(item, category, SYNC_ACTIONS.CREATE, userId);
+          queue.push({
+            queueId: generateId(),
+            userId,
+            entityType: category.toUpperCase(),
+            entityId: item.id,
+            action: SYNC_ACTIONS.CREATE,
+            payload: {
+              id: item.id,
+              uri: item.uri,
+              name: item.name || item.fileName || item.id,
+              mimeType: item.mimeType || 'application/octet-stream',
+              size: item.size || 0,
+              createdAt: item.createdAt || new Date().toISOString(),
+              updatedAt: item.updatedAt || new Date().toISOString(),
+              fileId: item.cloudFileId || item.id,
+            },
+            status: QUEUE_STATUS.PENDING,
+            retryCount: 0,
+            maxRetries: MAX_RETRIES,
+            lastError: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          hasNewItems = true;
           enqueued++;
         }
       }
+    }
+
+    if (hasNewItems) {
+      await saveSyncQueue(userId, queue);
     }
   } catch (err) {
     console.warn('Lỗi reconcileLocalFilesWithQueue:', err.message);

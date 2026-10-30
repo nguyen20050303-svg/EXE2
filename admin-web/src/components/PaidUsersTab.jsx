@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { DollarSign, CreditCard, TrendingUp, Clock, CheckCircle2, XCircle, Search, ShieldCheck } from 'lucide-react';
-import { formatCurrency, formatDate } from '../utils/helpers';
+import { formatCurrency, formatDate, isPaidSubscription, formatPlanName } from '../utils/helpers';
 import { supabase } from '../supabase';
 
 export default function PaidUsersTab({
   subscriptions = [],
   paymentRequests = [],
   users = [],
+  paidUserIds = new Set(),
   loading,
   onRefresh,
 }) {
@@ -32,9 +33,7 @@ export default function PaidUsersTab({
   }, [paymentRequests]);
 
   const activePaidSubs = useMemo(() => {
-    return subscriptions.filter(
-      (s) => s.status === 'ACTIVE' || s.plan === 'BASIC' || s.plan === 'PRO' || s.plan === 'VIP'
-    );
+    return subscriptions.filter(isPaidSubscription);
   }, [subscriptions]);
 
   const pendingPayments = useMemo(() => {
@@ -43,8 +42,8 @@ export default function PaidUsersTab({
 
   const conversionRate = useMemo(() => {
     if (!users.length) return 0;
-    return Math.round((activePaidSubs.length / users.length) * 100);
-  }, [users, activePaidSubs]);
+    return Math.round((paidUserIds.size / users.length) * 100);
+  }, [users, paidUserIds]);
 
   // Handle Manual Approval for testing/demo
   const handleApprovePayment = async (request) => {
@@ -69,9 +68,9 @@ export default function PaidUsersTab({
 
       await supabase.from('subscriptions').upsert({
         user_id: request.user_id,
-        plan: request.plan_id ? request.plan_id.toUpperCase() : 'BASIC',
+        plan: request.plan_id ? request.plan_id.toUpperCase() : 'BASIC_500MB',
         status: 'ACTIVE',
-        provider: 'PAYOS',
+        provider: 'VIETQR',
         current_period_start: new Date().toISOString(),
         current_period_end: currentEnd.toISOString(),
         updated_at: new Date().toISOString(),
@@ -220,7 +219,7 @@ export default function PaidUsersTab({
                         </td>
                         <td className="py-3.5 px-4">
                           <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            ★ {sub.plan?.toUpperCase()}
+                            ★ {formatPlanName(sub.plan)}
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
@@ -312,7 +311,7 @@ export default function PaidUsersTab({
                           </td>
                           <td className="py-3.5 px-4">
                             <span className="text-xs font-semibold text-indigo-400">
-                              {p.plan_id?.toUpperCase()}
+                              {formatPlanName(p.plan_id)}
                             </span>
                           </td>
                           <td className="py-3.5 px-4 font-bold text-white">
@@ -363,4 +362,3 @@ export default function PaidUsersTab({
     </div>
   );
 }
-
