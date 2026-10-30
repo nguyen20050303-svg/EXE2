@@ -3,7 +3,7 @@
     "name": "Hidder",
     "slug": "hidder",
     "scheme": "hidder",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.hidder.app",
-      "versionCode": 10,
+      "versionCode": 11,
       "allowBackup": false,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
