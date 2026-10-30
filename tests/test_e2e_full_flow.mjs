@@ -1526,6 +1526,16 @@ await it("50. App.js Engagement Tracking: Tích hợp đo Outer Shell, Import Fi
   assert(appCode.includes("logTriggerCloudSync("), "Phải theo dõi số lần bấm đồng bộ Cloud");
 });
 
+await it("51. Picker Active Protection: appIcon.js chặn đổi icon khi picker mở và AuthContext đồng bộ cờ picker", async () => {
+  const appIconCode = fs.readFileSync("src/services/appIcon.js", "utf8");
+  const authCode = fs.readFileSync("src/context/AuthContext.js", "utf8");
+
+  assert(appIconCode.includes("export const setAppIconPickerActive"), "appIcon.js phải export setAppIconPickerActive");
+  assert(appIconCode.includes("if (_isPickerActive)"), "appIcon.js phải kiểm tra cờ _isPickerActive khi app vào background");
+  assert(authCode.includes("setAppIconPickerActive(true)"), "AuthContext phải bật cờ setAppIconPickerActive khi mở picker");
+  assert(authCode.includes("setAppIconPickerActive(false)"), "AuthContext phải tắt cờ setAppIconPickerActive khi đóng picker");
+});
+
 console.log("\n=============================================================");
 console.log(
   `  KẾT QUẢ KIỂM THỬ: ${passedTests} / ${totalTests} BÀI TEST ĐÃ VƯỢT QUA`,

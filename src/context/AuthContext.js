@@ -62,6 +62,7 @@ import {
   clearActiveMasterKey,
 } from "../services/crypto";
 import { syncAppIconWithDisguise } from "../services/appIcon";
+import { setAppIconPickerActive } from "../services/appIcon";
 import { logUnlockVault } from "../services/analytics";
 
 export const AuthContext = createContext(null);
@@ -126,12 +127,14 @@ export const AuthProvider = ({ children }) => {
     }
     if (active) {
       isPickerActiveRef.current = true;
+      setAppIconPickerActive(true);
     } else {
-      // Giữ cờ 1500ms để hệ điều hành hoàn tất chu kỳ chuyển tiếp (inactive -> active) khi đóng Thư viện/Picker
+      // Giữ cờ 3000ms an toàn để hệ điều hành hoàn tất chu kỳ chuyển tiếp (inactive -> active) khi đóng Thư viện/Picker
       pickerTimeoutRef.current = setTimeout(() => {
         isPickerActiveRef.current = false;
         pickerTimeoutRef.current = null;
-      }, 1500);
+        setAppIconPickerActive(false);
+      }, 3000);
     }
   };
 
